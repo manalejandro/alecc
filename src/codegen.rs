@@ -26,7 +26,8 @@ impl CodeGenerator {
         // Generate string literals section
         if !self.string_literals.is_empty() {
             self.emit_line(".section .rodata");
-            for (content, label) in &self.string_literals {
+            let string_literals = self.string_literals.clone(); // Clone to avoid borrow issues
+            for (content, label) in &string_literals {
                 self.emit_line(&format!("{}:", label));
                 self.emit_line(&format!("    .string \"{}\"", self.escape_string(content)));
             }

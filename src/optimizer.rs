@@ -1,5 +1,5 @@
 use crate::parser::Program;
-use crate::error::{AleccError, Result};
+use crate::error::Result;
 
 pub struct Optimizer {
     level: OptimizationLevel,

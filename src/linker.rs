@@ -2,7 +2,6 @@ use crate::targets::Target;
 use crate::error::{AleccError, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tokio::fs;
 
 pub struct Linker {
     target: Target,

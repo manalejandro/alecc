@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use anyhow::Result;
 use tracing::{info, error};
 
