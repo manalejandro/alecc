@@ -1,0 +1,47 @@
+[package]
+name = "alecc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ale <ale@example.com>"]
+description = "A high-performance C/C++ compiler with GCC compatibility"
+license = "MIT"
+repository = "https://github.com/ale/alecc"
+keywords = ["compiler", "c", "cpp", "gcc", "cross-platform"]
+categories = ["compilers", "command-line-utilities"]
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+regex = "1.10"
+lazy_static = "1.4"
+tempfile = "3.8"
+walkdir = "2.4"
+which = "6.0"
+
+[dev-dependencies]
+criterion = "0.5"
+tempdir = "0.3"
+
+[[bin]]
+name = "alecc"
+path = "src/main.rs"
+
+[[bench]]
+name = "compilation_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
