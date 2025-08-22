@@ -169,7 +169,9 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0 }
+        let mut parser = Self { tokens, current: 0 };
+        parser.skip_newlines(); // Skip initial newlines
+        parser
     }
 
     pub fn parse(&mut self) -> Result<Program> {
@@ -384,7 +386,22 @@ impl Parser {
         if !self.is_at_end() {
             self.current += 1;
         }
+        self.skip_newlines();
         self.previous()
+    }
+
+    fn skip_newlines(&mut self) {
+        while !self.is_at_end() {
+            if let Ok(token) = self.current_token() {
+                if token.token_type == TokenType::Newline {
+                    self.current += 1;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
     }
 
     fn previous(&self) -> Result<&Token> {
@@ -424,6 +441,16 @@ impl Parser {
         } else {
             false
         }
+    }
+
+    fn match_tokens(&mut self, token_types: &[TokenType]) -> bool {
+        for token_type in token_types {
+            if self.check(token_type) {
+                self.advance().unwrap();
+                return true;
+            }
+        }
+        false
     }
 
     fn consume(&mut self, token_type: &TokenType, message: &str) -> Result<&Token> {
@@ -495,6 +522,7 @@ impl Parser {
         self.consume(&TokenType::RightParen, "Expected ')' after parameters")?;
         
         let body = if self.check(&TokenType::LeftBrace) {
+            self.advance()?; // Consume the LeftBrace
             self.parse_block_statement()?
         } else {
             self.consume(&TokenType::Semicolon, "Expected ';' after function declaration")?;
@@ -535,8 +563,7 @@ impl Parser {
     }
 
     fn parse_block_statement(&mut self) -> Result<Statement> {
-        self.consume(&TokenType::LeftBrace, "Expected '{'")?;
-        
+        // Note: LeftBrace was already consumed by match_token in parse_statement
         let mut statements = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
             statements.push(self.parse_statement()?);
@@ -547,7 +574,7 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement> {
-        // Simplified statement parsing
+        // Try to parse different types of statements
         if self.match_token(&TokenType::Return) {
             let expr = if !self.check(&TokenType::Semicolon) {
                 Some(self.parse_expression()?)
@@ -556,25 +583,306 @@ impl Parser {
             };
             self.consume(&TokenType::Semicolon, "Expected ';' after return")?;
             Ok(Statement::Return(expr))
+        } else if self.match_token(&TokenType::If) {
+            self.parse_if_statement()
+        } else if self.match_token(&TokenType::While) {
+            self.parse_while_statement()
+        } else if self.match_token(&TokenType::For) {
+            self.parse_for_statement()
+        } else if self.match_token(&TokenType::LeftBrace) {
+            self.parse_block_statement()
+        } else if self.is_type(&self.current_token()?.token_type) {
+            // Variable declaration - convert to Statement format
+            let var_type = self.parse_type()?;
+            let name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
+                name.clone()
+            } else {
+                return Err(AleccError::ParseError {
+                    line: self.current_token()?.line,
+                    column: self.current_token()?.column,
+                    message: "Expected variable name".to_string(),
+                });
+            };
+
+            let initializer = if self.match_token(&TokenType::Assign) {
+                Some(self.parse_expression()?)
+            } else {
+                None
+            };
+
+            self.consume(&TokenType::Semicolon, "Expected ';' after variable declaration")?;
+            
+            Ok(Statement::Declaration {
+                name,
+                var_type,
+                initializer,
+            })
         } else {
+            // Expression statement
             let expr = self.parse_expression()?;
             self.consume(&TokenType::Semicolon, "Expected ';' after expression")?;
             Ok(Statement::Expression(expr))
         }
     }
 
+    fn parse_if_statement(&mut self) -> Result<Statement> {
+        self.consume(&TokenType::LeftParen, "Expected '(' after 'if'")?;
+        let condition = self.parse_expression()?;
+        self.consume(&TokenType::RightParen, "Expected ')' after if condition")?;
+        
+        let then_stmt = Box::new(self.parse_statement()?);
+        let else_stmt = if self.match_token(&TokenType::Else) {
+            Some(Box::new(self.parse_statement()?))
+        } else {
+            None
+        };
+        
+        Ok(Statement::If {
+            condition,
+            then_stmt,
+            else_stmt,
+        })
+    }
+
+    fn parse_while_statement(&mut self) -> Result<Statement> {
+        self.consume(&TokenType::LeftParen, "Expected '(' after 'while'")?;
+        let condition = self.parse_expression()?;
+        self.consume(&TokenType::RightParen, "Expected ')' after while condition")?;
+        let body = Box::new(self.parse_statement()?);
+        
+        Ok(Statement::While { condition, body })
+    }
+
+    fn parse_for_statement(&mut self) -> Result<Statement> {
+        self.consume(&TokenType::LeftParen, "Expected '(' after 'for'")?;
+        
+        let init = if self.check(&TokenType::Semicolon) {
+            None
+        } else {
+            Some(Box::new(self.parse_statement()?))
+        };
+        
+        if init.is_none() {
+            self.advance()?; // consume semicolon
+        }
+        
+        let condition = if self.check(&TokenType::Semicolon) {
+            None
+        } else {
+            Some(self.parse_expression()?)
+        };
+        self.consume(&TokenType::Semicolon, "Expected ';' after for condition")?;
+        
+        let increment = if self.check(&TokenType::RightParen) {
+            None
+        } else {
+            Some(self.parse_expression()?)
+        };
+        self.consume(&TokenType::RightParen, "Expected ')' after for clauses")?;
+        
+        let body = Box::new(self.parse_statement()?);
+        
+        Ok(Statement::For {
+            init,
+            condition,
+            increment,
+            body,
+        })
+    }
+
+    fn is_type(&self, token_type: &TokenType) -> bool {
+        matches!(token_type, 
+            TokenType::Int | TokenType::Float | TokenType::Double | 
+            TokenType::Char | TokenType::Void | TokenType::Short | 
+            TokenType::Long | TokenType::Signed | TokenType::Unsigned)
+    }
+
     fn parse_expression(&mut self) -> Result<Expression> {
-        // Simplified expression parsing - just literals and identifiers for now
-        match &self.advance()?.token_type {
+        self.parse_logical_or()
+    }
+
+    fn parse_logical_or(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_logical_and()?;
+        
+        while self.match_token(&TokenType::LogicalOr) {
+            let operator = BinaryOperator::LogicalOr;
+            let right = self.parse_logical_and()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_logical_and(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_equality()?;
+        
+        while self.match_token(&TokenType::LogicalAnd) {
+            let operator = BinaryOperator::LogicalAnd;
+            let right = self.parse_equality()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_equality(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_comparison()?;
+        
+        while self.match_tokens(&[TokenType::Equal, TokenType::NotEqual]) {
+            let operator = match self.previous()?.token_type {
+                TokenType::Equal => BinaryOperator::Equal,
+                TokenType::NotEqual => BinaryOperator::NotEqual,
+                _ => unreachable!(),
+            };
+            let right = self.parse_comparison()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_comparison(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_term()?;
+        
+        while self.match_tokens(&[TokenType::Greater, TokenType::GreaterEqual, 
+                                  TokenType::Less, TokenType::LessEqual]) {
+            let operator = match self.previous()?.token_type {
+                TokenType::Greater => BinaryOperator::Greater,
+                TokenType::GreaterEqual => BinaryOperator::GreaterEqual,
+                TokenType::Less => BinaryOperator::Less,
+                TokenType::LessEqual => BinaryOperator::LessEqual,
+                _ => unreachable!(),
+            };
+            let right = self.parse_term()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_term(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_factor()?;
+        
+        while self.match_tokens(&[TokenType::Minus, TokenType::Plus]) {
+            let operator = match self.previous()?.token_type {
+                TokenType::Minus => BinaryOperator::Subtract,
+                TokenType::Plus => BinaryOperator::Add,
+                _ => unreachable!(),
+            };
+            let right = self.parse_factor()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_factor(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_unary()?;
+        
+        while self.match_tokens(&[TokenType::Divide, TokenType::Multiply, TokenType::Modulo]) {
+            let operator = match self.previous()?.token_type {
+                TokenType::Divide => BinaryOperator::Divide,
+                TokenType::Multiply => BinaryOperator::Multiply,
+                TokenType::Modulo => BinaryOperator::Modulo,
+                _ => unreachable!(),
+            };
+            let right = self.parse_unary()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_unary(&mut self) -> Result<Expression> {
+        if self.match_tokens(&[TokenType::LogicalNot, TokenType::Minus, TokenType::Plus]) {
+            let operator = match self.previous()?.token_type {
+                TokenType::LogicalNot => UnaryOperator::LogicalNot,
+                TokenType::Minus => UnaryOperator::Minus,
+                TokenType::Plus => UnaryOperator::Plus,
+                _ => unreachable!(),
+            };
+            let right = self.parse_unary()?;
+            return Ok(Expression::Unary {
+                operator,
+                operand: Box::new(right),
+            });
+        }
+        
+        self.parse_call()
+    }
+
+    fn parse_call(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_primary()?;
+        
+        while self.match_token(&TokenType::LeftParen) {
+            expr = self.finish_call(expr)?;
+        }
+        
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expression) -> Result<Expression> {
+        let mut arguments = Vec::new();
+        
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                arguments.push(self.parse_expression()?);
+                if !self.match_token(&TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        
+        self.consume(&TokenType::RightParen, "Expected ')' after arguments")?;
+        
+        Ok(Expression::Call {
+            function: Box::new(callee),
+            arguments,
+        })
+    }
+
+    fn parse_primary(&mut self) -> Result<Expression> {
+        if self.match_token(&TokenType::LeftParen) {
+            let expr = self.parse_expression()?;
+            self.consume(&TokenType::RightParen, "Expected ')' after expression")?;
+            return Ok(expr);
+        }
+        
+        let token = self.advance()?;
+        match &token.token_type {
             TokenType::IntegerLiteral(value) => Ok(Expression::IntegerLiteral(*value)),
             TokenType::FloatLiteral(value) => Ok(Expression::FloatLiteral(*value)),
             TokenType::StringLiteral(value) => Ok(Expression::StringLiteral(value.clone())),
             TokenType::CharLiteral(value) => Ok(Expression::CharLiteral(*value)),
             TokenType::Identifier(name) => Ok(Expression::Identifier(name.clone())),
             _ => Err(AleccError::ParseError {
-                line: self.current_token()?.line,
-                column: self.current_token()?.column,
-                message: "Expected expression".to_string(),
+                line: token.line,
+                column: token.column,
+                message: format!("Expected expression, found {:?}", token.token_type),
             }),
         }
     }

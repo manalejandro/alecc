@@ -210,40 +210,20 @@ impl Linker {
             command.push(lib.clone());
         }
 
-        // Standard libraries
+        // Standard libraries - skip for now to avoid conflicts
+        // Our programs use custom runtime with syscalls
+        /*
         if !self.static_link {
             command.push("-lc".to_string());
         }
+        */
 
         Ok(command)
     }
 
     fn add_standard_startup_files(&self, command: &mut Vec<String>) -> Result<()> {
-        let lib_path = match self.target {
-            Target::I386 => "/usr/lib/i386-linux-gnu",
-            Target::Amd64 => "/usr/lib/x86_64-linux-gnu",
-            Target::Arm64 => "/usr/lib/aarch64-linux-gnu",
-        };
-
-        // Add crt1.o, crti.o, crtbegin.o
-        let startup_files = if self.pie {
-            vec!["Scrt1.o", "crti.o"]
-        } else {
-            vec!["crt1.o", "crti.o"]
-        };
-
-        for file in startup_files {
-            command.push(format!("{}/{}", lib_path, file));
-        }
-
-        // Add GCC's crtbegin.o
-        let gcc_lib = self.get_gcc_lib_path()?;
-        if self.shared {
-            command.push(format!("{}/crtbeginS.o", gcc_lib));
-        } else {
-            command.push(format!("{}/crtbegin.o", gcc_lib));
-        }
-
+        // Skip startup files when we have our own _start
+        // This prevents conflicts with our custom _start implementation
         Ok(())
     }
 

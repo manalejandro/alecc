@@ -1,4 +1,4 @@
-use crate::parser::{Program, Function, Expression, Statement, Type};
+use crate::parser::{Program, Function, Expression, Statement, Type, BinaryOperator};
 use crate::targets::Target;
 use crate::error::{AleccError, Result};
 use std::collections::HashMap;
@@ -8,6 +8,7 @@ pub struct CodeGenerator {
     output: String,
     label_counter: usize,
     string_literals: HashMap<String, String>,
+    current_function_params: Vec<(String, i32)>, // (name, stack_offset)
 }
 
 impl CodeGenerator {
@@ -17,6 +18,7 @@ impl CodeGenerator {
             output: String::new(),
             label_counter: 0,
             string_literals: HashMap::new(),
+            current_function_params: Vec::new(),
         }
     }
 
@@ -49,7 +51,33 @@ impl CodeGenerator {
             self.generate_function(function)?;
         }
 
+        // Generate _start entry point
+        self.generate_start_function()?;
+
         Ok(self.output.clone())
+    }
+
+    fn generate_start_function(&mut self) -> Result<()> {
+        self.emit_line("");
+        self.emit_line(".globl _start");
+        self.emit_line("_start:");
+        
+        // Set up stack and call main
+        self.emit_line("    push rbp");
+        self.emit_line("    mov rbp, rsp");
+        
+        // Reserve space for temporary operations (prevents stack corruption)
+        self.emit_line("    sub rsp, 128");
+        
+        // Call main function
+        self.emit_line("    call main");
+        
+        // Exit syscall with main's return value
+        self.emit_line("    mov rdi, rax");  // exit status = main's return value
+        self.emit_line("    mov rax, 60");   // sys_exit syscall number
+        self.emit_line("    syscall");       // invoke syscall
+        
+        Ok(())
     }
 
     fn emit_header(&mut self) {
@@ -59,7 +87,6 @@ impl CodeGenerator {
                 self.emit_line(".intel_syntax noprefix");
             }
             Target::Amd64 => {
-                self.emit_line(".arch x86_64");
                 self.emit_line(".intel_syntax noprefix");
             }
             Target::Arm64 => {
@@ -72,6 +99,9 @@ impl CodeGenerator {
     fn generate_function(&mut self, function: &Function) -> Result<()> {
         self.emit_line(&format!(".globl {}", function.name));
         self.emit_line(&format!("{}:", function.name));
+        
+        // Set up parameter tracking
+        self.current_function_params.clear();
         
         // Function prologue
         self.emit_function_prologue(&function.parameters)?;
@@ -92,28 +122,63 @@ impl CodeGenerator {
                 self.emit_line("    push ebp");
                 self.emit_line("    mov ebp, esp");
                 
-                // Reserve space for local variables (simplified)
-                let stack_space = parameters.len() * 4; // Simplified calculation
-                if stack_space > 0 {
-                    self.emit_line(&format!("    sub esp, {}", stack_space));
+                // Reserve space for parameters + 128 bytes for temporaries
+                let stack_space = parameters.len() * 4 + 128;
+                self.emit_line(&format!("    sub esp, {}", stack_space));
+                
+                // Store parameters from stack (i386 calling convention)
+                for (i, (name, _)) in parameters.iter().enumerate() {
+                    let param_offset = -(i as i32 + 1) * 4;
+                    let stack_offset = 8 + i as i32 * 4; // ebp + 8 + offset
+                    self.emit_line(&format!("    mov eax, DWORD PTR [ebp + {}]", stack_offset));
+                    self.emit_line(&format!("    mov DWORD PTR [ebp + {}], eax", param_offset));
+                    self.current_function_params.push((name.clone(), param_offset));
                 }
             }
             Target::Amd64 => {
                 self.emit_line("    push rbp");
                 self.emit_line("    mov rbp, rsp");
                 
-                let stack_space = parameters.len() * 8;
-                if stack_space > 0 {
-                    self.emit_line(&format!("    sub rsp, {}", stack_space));
+                // Reserve space for parameters + 128 bytes for temporaries
+                let stack_space = parameters.len() * 8 + 128;
+                self.emit_line(&format!("    sub rsp, {}", stack_space));
+                
+                // Store parameters from registers (x86_64 calling convention)
+                let param_registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+                for (i, (name, _)) in parameters.iter().enumerate() {
+                    let param_offset = -(i as i32 + 1) * 8;
+                    if i < param_registers.len() {
+                        // Parameter passed in register
+                        self.emit_line(&format!("    mov QWORD PTR [rbp + {}], {}", param_offset, param_registers[i]));
+                    } else {
+                        // Parameter passed on stack
+                        let stack_offset = 16 + (i - param_registers.len()) as i32 * 8;
+                        self.emit_line(&format!("    mov rax, QWORD PTR [rbp + {}]", stack_offset));
+                        self.emit_line(&format!("    mov QWORD PTR [rbp + {}], rax", param_offset));
+                    }
+                    self.current_function_params.push((name.clone(), param_offset));
                 }
             }
             Target::Arm64 => {
                 self.emit_line("    stp x29, x30, [sp, #-16]!");
                 self.emit_line("    mov x29, sp");
                 
-                let stack_space = (parameters.len() * 8 + 15) & !15; // 16-byte aligned
-                if stack_space > 0 {
-                    self.emit_line(&format!("    sub sp, sp, #{}", stack_space));
+                let stack_space = (parameters.len() * 8 + 128 + 15) & !15; // 16-byte aligned
+                self.emit_line(&format!("    sub sp, sp, #{}", stack_space));
+                
+                // Store parameters from registers (ARM64 calling convention)
+                for (i, (name, _)) in parameters.iter().enumerate() {
+                    let param_offset = -(i as i32 + 1) * 8;
+                    if i < 8 {
+                        // Parameter passed in register x0-x7
+                        self.emit_line(&format!("    str x{}, [x29, #{}]", i, param_offset));
+                    } else {
+                        // Parameter passed on stack
+                        let stack_offset = 16 + (i - 8) as i32 * 8;
+                        self.emit_line(&format!("    ldr x9, [x29, #{}]", stack_offset));
+                        self.emit_line(&format!("    str x9, [x29, #{}]", param_offset));
+                    }
+                    self.current_function_params.push((name.clone(), param_offset));
                 }
             }
         }
@@ -240,26 +305,77 @@ impl CodeGenerator {
                 }
             }
             Expression::Identifier(name) => {
-                // Load variable (simplified - assumes it's a parameter or global)
-                match self.target {
-                    Target::I386 => {
-                        self.emit_line(&format!("    mov eax, DWORD PTR [{}]", name));
+                // Check if it's a function parameter first
+                if let Some((_, offset)) = self.current_function_params.iter().find(|(param_name, _)| param_name == name) {
+                    // Load parameter from stack
+                    match self.target {
+                        Target::I386 => {
+                            self.emit_line(&format!("    mov eax, DWORD PTR [ebp + {}]", offset));
+                        }
+                        Target::Amd64 => {
+                            self.emit_line(&format!("    mov rax, QWORD PTR [rbp + {}]", offset));
+                        }
+                        Target::Arm64 => {
+                            self.emit_line(&format!("    ldr x0, [x29, #{}]", offset));
+                        }
                     }
-                    Target::Amd64 => {
-                        self.emit_line(&format!("    mov rax, QWORD PTR [{}]", name));
-                    }
-                    Target::Arm64 => {
-                        self.emit_line(&format!("    adrp x1, {}", name));
-                        self.emit_line(&format!("    add x1, x1, :lo12:{}", name));
-                        self.emit_line("    ldr x0, [x1]");
+                } else {
+                    // Load global variable
+                    match self.target {
+                        Target::I386 => {
+                            self.emit_line(&format!("    mov eax, DWORD PTR [{}]", name));
+                        }
+                        Target::Amd64 => {
+                            self.emit_line(&format!("    mov rax, QWORD PTR [{}]", name));
+                        }
+                        Target::Arm64 => {
+                            self.emit_line(&format!("    adrp x1, {}", name));
+                            self.emit_line(&format!("    add x1, x1, :lo12:{}", name));
+                            self.emit_line("    ldr x0, [x1]");
+                        }
                     }
                 }
             }
             Expression::Call { function, arguments } => {
-                // Generate arguments in reverse order
-                for (i, arg) in arguments.iter().enumerate().rev() {
-                    self.generate_expression(arg)?;
-                    self.push_argument(i)?;
+                // Generate arguments and place in calling convention registers/stack
+                match self.target {
+                    Target::I386 => {
+                        // i386: push arguments in reverse order
+                        for arg in arguments.iter().rev() {
+                            self.generate_expression(arg)?;
+                            self.emit_line("    push eax");
+                        }
+                    }
+                    Target::Amd64 => {
+                        // x86_64: first 6 args in registers, rest on stack
+                        let param_registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+                        
+                        // Generate arguments and store in registers/stack
+                        for (i, arg) in arguments.iter().enumerate() {
+                            self.generate_expression(arg)?;
+                            if i < param_registers.len() {
+                                // Move to parameter register
+                                self.emit_line(&format!("    mov {}, rax", param_registers[i]));
+                            } else {
+                                // Push to stack (reverse order for stack args)
+                                self.emit_line("    push rax");
+                            }
+                        }
+                    }
+                    Target::Arm64 => {
+                        // ARM64: first 8 args in x0-x7, rest on stack
+                        for (i, arg) in arguments.iter().enumerate() {
+                            self.generate_expression(arg)?;
+                            if i < 8 {
+                                if i > 0 {
+                                    self.emit_line(&format!("    mov x{}, x0", i));
+                                }
+                                // x0 already has the result for first argument
+                            } else {
+                                self.emit_line("    str x0, [sp, #-16]!");
+                            }
+                        }
+                    }
                 }
                 
                 if let Expression::Identifier(func_name) = function.as_ref() {
@@ -270,18 +386,128 @@ impl CodeGenerator {
                     });
                 }
                 
-                // Clean up stack
-                let stack_cleanup = arguments.len() * self.target.pointer_size();
-                if stack_cleanup > 0 {
-                    match self.target {
-                        Target::I386 => {
+                // Clean up stack for arguments that were pushed
+                match self.target {
+                    Target::I386 => {
+                        let stack_cleanup = arguments.len() * 4;
+                        if stack_cleanup > 0 {
                             self.emit_line(&format!("    add esp, {}", stack_cleanup));
                         }
-                        Target::Amd64 => {
-                            // Arguments passed in registers, no cleanup needed
+                    }
+                    Target::Amd64 => {
+                        // Clean up stack arguments (if any)
+                        let stack_args = if arguments.len() > 6 { arguments.len() - 6 } else { 0 };
+                        if stack_args > 0 {
+                            self.emit_line(&format!("    add rsp, {}", stack_args * 8));
                         }
-                        Target::Arm64 => {
-                            // Arguments passed in registers, no cleanup needed
+                    }
+                    Target::Arm64 => {
+                        // Clean up stack arguments (if any)
+                        let stack_args = if arguments.len() > 8 { arguments.len() - 8 } else { 0 };
+                        if stack_args > 0 {
+                            self.emit_line(&format!("    add sp, sp, #{}", stack_args * 16));
+                        }
+                    }
+                }
+            }
+            Expression::Binary { left, operator, right } => {
+                // Generate binary operations
+                // First generate right operand and save it
+                self.generate_expression(right)?;
+                match self.target {
+                    Target::I386 => {
+                        self.emit_line("    push eax");  // Save right operand
+                    }
+                    Target::Amd64 => {
+                        self.emit_line("    push rax");  // Save right operand
+                    }
+                    Target::Arm64 => {
+                        self.emit_line("    str x0, [sp, #-16]!");  // Save right operand
+                    }
+                }
+                
+                // Generate left operand
+                self.generate_expression(left)?;
+                
+                // Pop right operand and perform operation
+                match self.target {
+                    Target::I386 => {
+                        self.emit_line("    pop ebx");   // Right operand in ebx
+                        match operator {
+                            BinaryOperator::Add => self.emit_line("    add eax, ebx"),
+                            BinaryOperator::Subtract => self.emit_line("    sub eax, ebx"),
+                            BinaryOperator::Multiply => self.emit_line("    imul eax, ebx"),
+                            BinaryOperator::Divide => {
+                                self.emit_line("    cdq");  // Sign extend eax to edx:eax
+                                self.emit_line("    idiv ebx");
+                            }
+                            _ => {
+                                return Err(AleccError::CodegenError {
+                                    message: format!("Binary operator {:?} not implemented for i386", operator),
+                                });
+                            }
+                        }
+                    }
+                    Target::Amd64 => {
+                        self.emit_line("    pop rbx");   // Right operand in rbx
+                        match operator {
+                            BinaryOperator::Add => self.emit_line("    add rax, rbx"),
+                            BinaryOperator::Subtract => self.emit_line("    sub rax, rbx"),
+                            BinaryOperator::Multiply => self.emit_line("    imul rax, rbx"),
+                            BinaryOperator::Divide => {
+                                self.emit_line("    cqo");  // Sign extend rax to rdx:rax
+                                self.emit_line("    idiv rbx");
+                            }
+                            // Comparison operators
+                            BinaryOperator::Equal => {
+                                self.emit_line("    cmp rax, rbx");
+                                self.emit_line("    sete al");
+                                self.emit_line("    movzx rax, al");
+                            }
+                            BinaryOperator::NotEqual => {
+                                self.emit_line("    cmp rax, rbx");
+                                self.emit_line("    setne al");
+                                self.emit_line("    movzx rax, al");
+                            }
+                            BinaryOperator::Less => {
+                                self.emit_line("    cmp rax, rbx");
+                                self.emit_line("    setl al");
+                                self.emit_line("    movzx rax, al");
+                            }
+                            BinaryOperator::Greater => {
+                                self.emit_line("    cmp rax, rbx");
+                                self.emit_line("    setg al");
+                                self.emit_line("    movzx rax, al");
+                            }
+                            BinaryOperator::LessEqual => {
+                                self.emit_line("    cmp rax, rbx");
+                                self.emit_line("    setle al");
+                                self.emit_line("    movzx rax, al");
+                            }
+                            BinaryOperator::GreaterEqual => {
+                                self.emit_line("    cmp rax, rbx");
+                                self.emit_line("    setge al");
+                                self.emit_line("    movzx rax, al");
+                            }
+                            _ => {
+                                return Err(AleccError::CodegenError {
+                                    message: format!("Binary operator {:?} not implemented for amd64", operator),
+                                });
+                            }
+                        }
+                    }
+                    Target::Arm64 => {
+                        self.emit_line("    ldr x1, [sp], #16");  // Right operand in x1
+                        match operator {
+                            BinaryOperator::Add => self.emit_line("    add x0, x0, x1"),
+                            BinaryOperator::Subtract => self.emit_line("    sub x0, x0, x1"),
+                            BinaryOperator::Multiply => self.emit_line("    mul x0, x0, x1"),
+                            BinaryOperator::Divide => self.emit_line("    sdiv x0, x0, x1"),
+                            _ => {
+                                return Err(AleccError::CodegenError {
+                                    message: format!("Binary operator {:?} not implemented for arm64", operator),
+                                });
+                            }
                         }
                     }
                 }
