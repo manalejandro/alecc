@@ -179,7 +179,7 @@ impl CodeGenerator {
                 let stack_space = parameters.len() * 8;
                 // Always reserve at least 8 bytes to maintain 16-byte alignment after rbp push
                 let min_space = if stack_space == 0 { 8 } else { stack_space };
-                let aligned_space = ((min_space + 15) / 16) * 16; // Round up to 16-byte boundary
+                let aligned_space = min_space.div_ceil(16) * 16; // Round up to 16-byte boundary
                 self.emit_line(&format!("    sub rsp, {}", aligned_space));
 
                 // Store parameters from registers (x86_64 calling convention)
