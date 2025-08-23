@@ -16,6 +16,7 @@ pub enum AleccError {
         message: String,
     },
 
+    #[allow(dead_code)]
     #[error("Semantic error: {message}")]
     SemanticError { message: String },
 
@@ -37,6 +38,7 @@ pub enum AleccError {
     #[error("Invalid argument: {message}")]
     InvalidArgument { message: String },
 
+    #[allow(dead_code)]
     #[error("Internal compiler error: {message}")]
     InternalError { message: String },
 }

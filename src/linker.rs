@@ -210,18 +210,15 @@ impl Linker {
             command.push(lib.clone());
         }
 
-        // Standard libraries - skip for now to avoid conflicts
-        // Our programs use custom runtime with syscalls
-        /*
+        // Standard libraries
         if !self.static_link {
             command.push("-lc".to_string());
         }
-        */
 
         Ok(command)
     }
 
-    fn add_standard_startup_files(&self, command: &mut Vec<String>) -> Result<()> {
+    fn add_standard_startup_files(&self, _command: &mut Vec<String>) -> Result<()> {
         // Skip startup files when we have our own _start
         // This prevents conflicts with our custom _start implementation
         Ok(())
@@ -320,6 +317,7 @@ impl Linker {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn link_static_library(&self) -> Result<()> {
         // Use ar to create static library
         let mut command = vec!["ar".to_string(), "rcs".to_string()];

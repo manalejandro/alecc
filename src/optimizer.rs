@@ -225,8 +225,10 @@ impl Optimizer {
 }
 
 // Additional optimization passes that can be applied independently
+#[allow(dead_code)]
 pub struct OptimizationPasses;
 
+#[allow(dead_code)]
 impl OptimizationPasses {
     pub fn constant_propagation(_program: &mut Program) -> Result<()> {
         // TODO: Implement constant propagation

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use alecc::lexer::{Lexer, TokenType};
     use alecc::parser::Parser;
     use alecc::codegen::CodeGenerator;

@@ -20,6 +20,12 @@
 - **Seguridad**: Detección temprana de errores y manejo seguro de memoria
 - **Velocidad**: Compilación rápida con paralelización cuando es posible
 
+## ⚠️ Limitaciones Actuales
+
+- **Bibliotecas estándar**: No incluye implementación completa de la biblioteca estándar de C
+- **Headers del sistema**: Actualmente no procesa headers complejos del sistema
+- **Funciones estándar**: `printf` y otras funciones estándar requieren enlaces externos
+
 ## 🏗️ Arquitecturas Soportadas
 
 | Arquitectura | Estado | Descripción |
@@ -114,7 +120,7 @@ alecc --static programa.c -o programa_static
 #### Inclusión de Headers
 ```bash
 # Directorios de headers adicionales
-alecc -I./include -I/usr/local/include programa.c -o programa
+alecc -I/usr/local/include programa.c -o programa
 
 # Definir macros
 alecc -DDEBUG -DVERSION=1.0 programa.c -o programa

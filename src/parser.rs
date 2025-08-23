@@ -12,34 +12,44 @@ pub enum Type {
     Float,
     Double,
     Bool,
+    #[allow(dead_code)]
     Pointer(Box<Type>),
+    #[allow(dead_code)]
     Array(Box<Type>, Option<usize>),
+    #[allow(dead_code)]
     Function {
         return_type: Box<Type>,
         parameters: Vec<Type>,
         variadic: bool,
     },
+    #[allow(dead_code)]
     Struct {
         name: String,
         fields: Vec<(String, Type)>,
     },
+    #[allow(dead_code)]
     Union {
         name: String,
         fields: Vec<(String, Type)>,
     },
+    #[allow(dead_code)]
     Enum {
         name: String,
         variants: Vec<(String, i64)>,
     },
+    #[allow(dead_code)]
     Typedef(String, Box<Type>),
 }
 
 #[derive(Debug, Clone)]
 pub enum Expression {
     IntegerLiteral(i64),
+    #[allow(dead_code)]
     FloatLiteral(f64),
     StringLiteral(String),
+    #[allow(dead_code)]
     CharLiteral(char),
+    #[allow(dead_code)]
     BooleanLiteral(bool),
     Identifier(String),
     Binary {
@@ -55,6 +65,7 @@ pub enum Expression {
         function: Box<Expression>,
         arguments: Vec<Expression>,
     },
+    #[allow(dead_code)]
     Member {
         object: Box<Expression>,
         member: String,
@@ -64,16 +75,19 @@ pub enum Expression {
         array: Box<Expression>,
         index: Box<Expression>,
     },
+    #[allow(dead_code)]
     Cast {
         target_type: Type,
         expression: Box<Expression>,
     },
+    #[allow(dead_code)]
     Sizeof(Type),
     Assignment {
         target: Box<Expression>,
         operator: AssignmentOperator,
         value: Box<Expression>,
     },
+    #[allow(dead_code)]
     Conditional {
         condition: Box<Expression>,
         then_expr: Box<Expression>,
@@ -100,9 +114,13 @@ pub enum UnaryOperator {
 
 #[derive(Debug, Clone)]
 pub enum AssignmentOperator {
-    Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign, ModuloAssign,
-    BitwiseAndAssign, BitwiseOrAssign, BitwiseXorAssign,
-    LeftShiftAssign, RightShiftAssign,
+    Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign,
+    #[allow(dead_code)] ModuloAssign,
+    #[allow(dead_code)] BitwiseAndAssign,
+    #[allow(dead_code)] BitwiseOrAssign,
+    #[allow(dead_code)] BitwiseXorAssign,
+    #[allow(dead_code)] LeftShiftAssign,
+    #[allow(dead_code)] RightShiftAssign,
 }
 
 #[derive(Debug, Clone)]
@@ -129,36 +147,49 @@ pub enum Statement {
         increment: Option<Expression>,
         body: Box<Statement>,
     },
+    #[allow(dead_code)]
     DoWhile {
         body: Box<Statement>,
         condition: Expression,
     },
+    #[allow(dead_code)]
     Switch {
         expression: Expression,
         cases: Vec<(Option<Expression>, Vec<Statement>)>,
     },
     Return(Option<Expression>),
+    #[allow(dead_code)]
     Break,
+    #[allow(dead_code)]
     Continue,
+    #[allow(dead_code)]
     Goto(String),
+    #[allow(dead_code)]
     Label(String),
 }
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    #[allow(dead_code)]
     pub return_type: Type,
     pub parameters: Vec<(String, Type)>,
     pub body: Statement,
+    #[allow(dead_code)]
     pub is_inline: bool,
+    #[allow(dead_code)]
     pub is_static: bool,
+    #[allow(dead_code)]
     pub is_extern: bool,
+    #[allow(dead_code)]
+    pub is_variadic: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub global_variables: Vec<(String, Type, Option<Expression>)>,
+    #[allow(dead_code)]
     pub type_definitions: HashMap<String, Type>,
 }
 
@@ -215,6 +246,11 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Result<Type> {
+        // Skip type qualifiers like const, volatile
+        while self.match_token(&TokenType::Const) || self.match_token(&TokenType::Volatile) {
+            // Just consume the qualifier for now
+        }
+
         let mut base_type = match &self.advance()?.token_type {
             TokenType::Void => Type::Void,
             TokenType::Char => Type::Char,
@@ -242,6 +278,10 @@ impl Parser {
 
         // Handle pointer declarators
         while self.match_token(&TokenType::Multiply) {
+            // Skip const after *
+            while self.match_token(&TokenType::Const) || self.match_token(&TokenType::Volatile) {
+                // Just consume the qualifier for now
+            }
             base_type = Type::Pointer(Box::new(base_type));
         }
 
@@ -500,7 +540,14 @@ impl Parser {
         self.consume(&TokenType::LeftParen, "Expected '(' after function name")?;
         
         let mut parameters = Vec::new();
+        let mut is_variadic = false;
+        
         while !self.check(&TokenType::RightParen) && !self.is_at_end() {
+            if self.match_token(&TokenType::Ellipsis) {
+                is_variadic = true;
+                break;
+            }
+            
             let param_type = self.parse_type()?;
             let param_name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
                 name.clone()
@@ -537,6 +584,7 @@ impl Parser {
             is_inline: false,
             is_static: false,
             is_extern: false,
+            is_variadic,
         }))
     }
 
@@ -593,7 +641,7 @@ impl Parser {
             self.parse_block_statement()
         } else if self.is_type(&self.current_token()?.token_type) {
             // Variable declaration - convert to Statement format
-            let var_type = self.parse_type()?;
+            let mut var_type = self.parse_type()?;
             let name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
                 name.clone()
             } else {
@@ -603,6 +651,24 @@ impl Parser {
                     message: "Expected variable name".to_string(),
                 });
             };
+
+            // Check for array declaration
+            if self.match_token(&TokenType::LeftBracket) {
+                let size = if self.check(&TokenType::RightBracket) {
+                    None
+                } else {
+                    // Parse array size (should be a constant expression)
+                    let size_expr = self.parse_expression()?;
+                    if let Expression::IntegerLiteral(size) = size_expr {
+                        Some(size as usize)
+                    } else {
+                        // For now, just use a default size if not a simple integer
+                        Some(10)
+                    }
+                };
+                self.consume(&TokenType::RightBracket, "Expected ']' after array size")?;
+                var_type = Type::Array(Box::new(var_type), size);
+            }
 
             let initializer = if self.match_token(&TokenType::Assign) {
                 Some(self.parse_expression()?)
@@ -698,7 +764,50 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expression> {
-        self.parse_logical_or()
+        self.parse_assignment()
+    }
+
+    fn parse_assignment(&mut self) -> Result<Expression> {
+        let expr = self.parse_logical_or()?;
+        
+        if self.match_token(&TokenType::Assign) {
+            let value = self.parse_assignment()?; // Right associative
+            return Ok(Expression::Assignment {
+                target: Box::new(expr),
+                operator: AssignmentOperator::Assign,
+                value: Box::new(value),
+            });
+        } else if self.match_token(&TokenType::PlusAssign) {
+            let value = self.parse_assignment()?;
+            return Ok(Expression::Assignment {
+                target: Box::new(expr),
+                operator: AssignmentOperator::PlusAssign,
+                value: Box::new(value),
+            });
+        } else if self.match_token(&TokenType::MinusAssign) {
+            let value = self.parse_assignment()?;
+            return Ok(Expression::Assignment {
+                target: Box::new(expr),
+                operator: AssignmentOperator::MinusAssign,
+                value: Box::new(value),
+            });
+        } else if self.match_token(&TokenType::MultiplyAssign) {
+            let value = self.parse_assignment()?;
+            return Ok(Expression::Assignment {
+                target: Box::new(expr),
+                operator: AssignmentOperator::MultiplyAssign,
+                value: Box::new(value),
+            });
+        } else if self.match_token(&TokenType::DivideAssign) {
+            let value = self.parse_assignment()?;
+            return Ok(Expression::Assignment {
+                target: Box::new(expr),
+                operator: AssignmentOperator::DivideAssign,
+                value: Box::new(value),
+            });
+        }
+        
+        Ok(expr)
     }
 
     fn parse_logical_or(&mut self) -> Result<Expression> {
@@ -718,10 +827,58 @@ impl Parser {
     }
 
     fn parse_logical_and(&mut self) -> Result<Expression> {
-        let mut expr = self.parse_equality()?;
+        let mut expr = self.parse_bitwise_or()?;
         
         while self.match_token(&TokenType::LogicalAnd) {
             let operator = BinaryOperator::LogicalAnd;
+            let right = self.parse_bitwise_or()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_bitwise_or(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_bitwise_xor()?;
+        
+        while self.match_token(&TokenType::BitwiseOr) {
+            let operator = BinaryOperator::BitwiseOr;
+            let right = self.parse_bitwise_xor()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_bitwise_xor(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_bitwise_and()?;
+        
+        while self.match_token(&TokenType::BitwiseXor) {
+            let operator = BinaryOperator::BitwiseXor;
+            let right = self.parse_bitwise_and()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_bitwise_and(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_equality()?;
+        
+        while self.match_token(&TokenType::BitwiseAnd) {
+            let operator = BinaryOperator::BitwiseAnd;
             let right = self.parse_equality()?;
             expr = Expression::Binary {
                 left: Box::new(expr),
@@ -754,7 +911,7 @@ impl Parser {
     }
 
     fn parse_comparison(&mut self) -> Result<Expression> {
-        let mut expr = self.parse_term()?;
+        let mut expr = self.parse_shift()?;
         
         while self.match_tokens(&[TokenType::Greater, TokenType::GreaterEqual, 
                                   TokenType::Less, TokenType::LessEqual]) {
@@ -763,6 +920,26 @@ impl Parser {
                 TokenType::GreaterEqual => BinaryOperator::GreaterEqual,
                 TokenType::Less => BinaryOperator::Less,
                 TokenType::LessEqual => BinaryOperator::LessEqual,
+                _ => unreachable!(),
+            };
+            let right = self.parse_shift()?;
+            expr = Expression::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(expr)
+    }
+
+    fn parse_shift(&mut self) -> Result<Expression> {
+        let mut expr = self.parse_term()?;
+        
+        while self.match_tokens(&[TokenType::LeftShift, TokenType::RightShift]) {
+            let operator = match self.previous()?.token_type {
+                TokenType::LeftShift => BinaryOperator::LeftShift,
+                TokenType::RightShift => BinaryOperator::RightShift,
                 _ => unreachable!(),
             };
             let right = self.parse_term()?;
@@ -818,11 +995,16 @@ impl Parser {
     }
 
     fn parse_unary(&mut self) -> Result<Expression> {
-        if self.match_tokens(&[TokenType::LogicalNot, TokenType::Minus, TokenType::Plus]) {
+        if self.match_tokens(&[TokenType::LogicalNot, TokenType::Minus, TokenType::Plus, TokenType::Increment, TokenType::Decrement, TokenType::BitwiseAnd, TokenType::Multiply, TokenType::BitwiseNot]) {
             let operator = match self.previous()?.token_type {
                 TokenType::LogicalNot => UnaryOperator::LogicalNot,
                 TokenType::Minus => UnaryOperator::Minus,
                 TokenType::Plus => UnaryOperator::Plus,
+                TokenType::Increment => UnaryOperator::PreIncrement,
+                TokenType::Decrement => UnaryOperator::PreDecrement,
+                TokenType::BitwiseAnd => UnaryOperator::AddressOf,
+                TokenType::Multiply => UnaryOperator::Dereference,
+                TokenType::BitwiseNot => UnaryOperator::BitwiseNot,
                 _ => unreachable!(),
             };
             let right = self.parse_unary()?;
@@ -838,8 +1020,30 @@ impl Parser {
     fn parse_call(&mut self) -> Result<Expression> {
         let mut expr = self.parse_primary()?;
         
-        while self.match_token(&TokenType::LeftParen) {
-            expr = self.finish_call(expr)?;
+        loop {
+            if self.match_token(&TokenType::LeftParen) {
+                expr = self.finish_call(expr)?;
+            } else if self.match_token(&TokenType::LeftBracket) {
+                // Array indexing
+                let index = self.parse_expression()?;
+                self.consume(&TokenType::RightBracket, "Expected ']' after array index")?;
+                expr = Expression::Index {
+                    array: Box::new(expr),
+                    index: Box::new(index),
+                };
+            } else if self.match_token(&TokenType::Increment) {
+                expr = Expression::Unary {
+                    operator: UnaryOperator::PostIncrement,
+                    operand: Box::new(expr),
+                };
+            } else if self.match_token(&TokenType::Decrement) {
+                expr = Expression::Unary {
+                    operator: UnaryOperator::PostDecrement,
+                    operand: Box::new(expr),
+                };
+            } else {
+                break;
+            }
         }
         
         Ok(expr)
@@ -898,8 +1102,12 @@ enum Declaration {
 #[derive(Debug, Clone)]
 enum StorageClass {
     None,
+    #[allow(dead_code)]
     Static,
+    #[allow(dead_code)]
     Extern,
+    #[allow(dead_code)]
     Auto,
+    #[allow(dead_code)]
     Register,
 }

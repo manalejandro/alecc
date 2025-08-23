@@ -38,6 +38,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn alignment(&self) -> usize {
         match self {
             Target::I386 => 4,
@@ -54,6 +55,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn triple(&self) -> &'static str {
         match self {
             Target::I386 => "i386-unknown-linux-gnu",
@@ -62,6 +64,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn assembler(&self) -> &'static str {
         match self {
             Target::I386 => "as --32",
@@ -70,6 +73,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn linker(&self) -> &'static str {
         match self {
             Target::I386 => "ld -m elf_i386",
@@ -78,6 +82,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn object_format(&self) -> &'static str {
         match self {
             Target::I386 => "elf32",
@@ -86,6 +91,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn calling_convention(&self) -> CallingConvention {
         match self {
             Target::I386 => CallingConvention::Cdecl,
@@ -94,6 +100,7 @@ impl Target {
         }
     }
 
+    #[allow(dead_code)]
     pub fn register_names(&self) -> RegisterSet {
         match self {
             Target::I386 => RegisterSet::X86_32,
@@ -103,6 +110,7 @@ impl Target {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum CallingConvention {
     Cdecl,      // x86-32
@@ -110,6 +118,7 @@ pub enum CallingConvention {
     Aapcs64,    // ARM64
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum RegisterSet {
     X86_32,
@@ -117,6 +126,7 @@ pub enum RegisterSet {
     Aarch64,
 }
 
+#[allow(dead_code)]
 impl RegisterSet {
     pub fn general_purpose_registers(&self) -> &'static [&'static str] {
         match self {
@@ -159,6 +169,7 @@ impl RegisterSet {
     }
 }
 
+#[allow(dead_code)]
 pub struct TargetInfo {
     pub target: Target,
     pub endianness: Endianness,
@@ -168,12 +179,14 @@ pub struct TargetInfo {
     pub supports_pie: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum Endianness {
     Little,
     Big,
 }
 
+#[allow(dead_code)]
 impl TargetInfo {
     pub fn new(target: Target) -> Self {
         let (word_size, max_align) = match target {

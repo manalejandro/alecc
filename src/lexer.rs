@@ -38,6 +38,7 @@ pub enum TokenType {
     LeftBrace, RightBrace,
     LeftBracket, RightBracket,
     Semicolon, Comma,
+    Ellipsis, // ...
 
     // Preprocessor
     Hash, HashHash,
@@ -52,6 +53,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub line: usize,
     pub column: usize,
+    #[allow(dead_code)]
     pub length: usize,
 }
 
@@ -249,7 +251,22 @@ impl Lexer {
             ']' => Ok(Some(TokenType::RightBracket)),
             ';' => Ok(Some(TokenType::Semicolon)),
             ',' => Ok(Some(TokenType::Comma)),
-            '.' => Ok(Some(TokenType::Dot)),
+            '.' => {
+                if self.match_char('.') {
+                    if self.match_char('.') {
+                        Ok(Some(TokenType::Ellipsis)) // ...
+                    } else {
+                        // Error: .. is not valid
+                        Err(crate::error::AleccError::ParseError {
+                            line: self.line,
+                            column: self.column,
+                            message: "Invalid token '..'".to_string(),
+                        })
+                    }
+                } else {
+                    Ok(Some(TokenType::Dot))
+                }
+            }
             '?' => Ok(Some(TokenType::Question)),
             ':' => Ok(Some(TokenType::Colon)),
             '#' => {
