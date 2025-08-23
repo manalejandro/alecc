@@ -218,7 +218,7 @@ impl Linker {
         Ok(command)
     }
 
-    fn add_standard_startup_files(&self, _command: &mut Vec<String>) -> Result<()> {
+    fn add_standard_startup_files(&self, _command: &mut [String]) -> Result<()> {
         // Skip startup files when we have our own _start
         // This prevents conflicts with our custom _start implementation
         Ok(())
@@ -257,7 +257,7 @@ impl Linker {
     fn get_gcc_lib_path(&self) -> Result<String> {
         // Try to find GCC library path
         let output = Command::new("gcc")
-            .args(&["-print-libgcc-file-name"])
+            .args(["-print-libgcc-file-name"])
             .output()
             .map_err(|e| AleccError::LinkerError {
                 message: format!("Failed to find GCC library path: {}", e),

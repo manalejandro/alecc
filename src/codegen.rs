@@ -1267,7 +1267,7 @@ impl CodeGenerator {
 
         match self.target {
             Target::I386 | Target::Amd64 => {
-                self.emit_line(&format!("    test eax, eax"));
+                self.emit_line("    test eax, eax");
                 self.emit_line(&format!("    {} {}", instruction, label));
             }
             Target::Arm64 => {

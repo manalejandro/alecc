@@ -119,7 +119,7 @@ impl Compiler {
             let preprocessed = self.preprocess(&source, input_file).await?;
             fs::write(&output_path, preprocessed)
                 .await
-                .map_err(|e| AleccError::IoError(e))?;
+                .map_err(AleccError::IoError)?;
             return Ok(output_path);
         } else {
             self.preprocess(&source, input_file).await?
@@ -149,7 +149,7 @@ impl Compiler {
             let output_path = self.get_output_path(input_file, "s")?;
             fs::write(&output_path, assembly)
                 .await
-                .map_err(|e| AleccError::IoError(e))?;
+                .map_err(AleccError::IoError)?;
             return Ok(output_path);
         }
 
@@ -157,7 +157,7 @@ impl Compiler {
         let asm_path = self.create_temp_file("s")?;
         fs::write(&asm_path, assembly)
             .await
-            .map_err(|e| AleccError::IoError(e))?;
+            .map_err(AleccError::IoError)?;
 
         // Assemble
         let obj_path = self.assemble_file(&asm_path).await?;
@@ -215,9 +215,9 @@ impl Compiler {
                         // Skip malformed include
                     }
                 }
-            } else if trimmed.starts_with("#define") {
+            } else if let Some(stripped) = trimmed.strip_prefix("#define") {
                 // Handle #define (simplified)
-                let parts: Vec<&str> = trimmed[7..].split_whitespace().collect();
+                let parts: Vec<&str> = stripped.split_whitespace().collect();
                 if !parts.is_empty() {
                     let key = parts[0].to_string();
                     let value = if parts.len() > 1 {
@@ -330,17 +330,17 @@ impl Compiler {
 
         match self.target {
             Target::I386 => {
-                command.args(&["--32"]);
+                command.args(["--32"]);
             }
             Target::Amd64 => {
-                command.args(&["--64"]);
+                command.args(["--64"]);
             }
             Target::Arm64 => {
                 // Default options for aarch64
             }
         }
 
-        command.args(&[
+        command.args([
             "-o",
             &obj_path.to_string_lossy(),
             &asm_file.to_string_lossy(),

@@ -98,7 +98,8 @@ fn bench_optimizer(c: &mut Criterion) {
         b.iter(|| {
             let mut prog_copy = black_box(program.clone());
             let mut optimizer = Optimizer::new(OptimizationLevel::None);
-            black_box(optimizer.optimize(&mut prog_copy).unwrap());
+            optimizer.optimize(&mut prog_copy).unwrap();
+            black_box(());
         })
     });
 
@@ -106,7 +107,8 @@ fn bench_optimizer(c: &mut Criterion) {
         b.iter(|| {
             let mut prog_copy = black_box(program.clone());
             let mut optimizer = Optimizer::new(OptimizationLevel::Moderate);
-            black_box(optimizer.optimize(&mut prog_copy).unwrap());
+            optimizer.optimize(&mut prog_copy).unwrap();
+            black_box(());
         })
     });
 
@@ -114,7 +116,8 @@ fn bench_optimizer(c: &mut Criterion) {
         b.iter(|| {
             let mut prog_copy = black_box(program.clone());
             let mut optimizer = Optimizer::new(OptimizationLevel::Aggressive);
-            black_box(optimizer.optimize(&mut prog_copy).unwrap());
+            optimizer.optimize(&mut prog_copy).unwrap();
+            black_box(());
         })
     });
 }
