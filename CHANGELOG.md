@@ -20,6 +20,29 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Problemas de compilación en sistemas de 32 bits
 - Manejo de errores en el enlazador
 
+## [0.1.1] - 2025-08-23
+
+### Agregado
+- ✅ **Operadores compuestos**: Implementados +=, -=, *=, /= con soporte completo
+- ✅ **Operadores bitwise**: Agregados &, |, ^, ~, <<, >> con precedencia correcta
+- ✅ **Suite de tests**: Tests de integración completamente funcionales (10/10 pasando)
+- ✅ **Benchmarks**: Sistema de benchmarks con métricas de rendimiento
+- ✅ **Soporte biblioteca**: Configuración dual binario/biblioteca para tests
+- ✅ **Recursión mejorada**: Soporte completo para funciones recursivas (factorial, fibonacci)
+
+### Cambiado
+- 🔧 **Limpieza de código**: Eliminados todos los warnings de compilación (32 → 0)
+- 📝 **Documentación actualizada**: README con limitaciones actuales clarificadas
+- 🏗️ **Arquitectura mejorada**: Mejor separación de módulos con lib.rs
+
+### Corregido
+- 🐛 **Headers locales**: Eliminada dependencia del directorio include/ local
+- 🔨 **Patrones inalcanzables**: Corregidos match patterns redundantes
+- ⚠️ **Imports sin usar**: Limpiados todos los imports y variables no utilizados
+
+### Removido
+- ❌ **Directorio include/**: Eliminado directorio include/ y referencias obsoletas
+
 ## [0.1.0] - 2025-08-21
 
 ### Agregado

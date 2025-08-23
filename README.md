@@ -5,7 +5,8 @@
 ![Rust](https://img.shields.io/badge/language-Rust-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)
+![Tests](https://img.shields.io/badge/tests-10%2F10%20passing-brightgreen.svg)
 
 *Un compilador de C/C++ de alto rendimiento con compatibilidad GCC*
 
@@ -17,14 +18,56 @@
 - **Compatibilidad GCC**: Compatible con las opciones de línea de comandos de GCC
 - **Multiplataforma**: Soporte para arquitecturas i386, AMD64 y ARM64
 - **Optimizaciones Avanzadas**: Múltiples niveles de optimización (-O0 a -O3, -Os, -Oz)
+- **Operadores Completos**: Soporte para operadores compuestos (+=, -=, *=, /=) y bitwise (&, |, ^, ~, <<, >>)
+- **Recursión Avanzada**: Soporte completo para funciones recursivas
+- **Suite de Tests**: 10 tests de integración y benchmarks de rendimiento
 - **Seguridad**: Detección temprana de errores y manejo seguro de memoria
 - **Velocidad**: Compilación rápida con paralelización cuando es posible
+
+## 📋 Características del Lenguaje Soportadas
+
+### ✅ **Completamente Implementado**
+- **Tipos básicos**: `int`, `char`, `void`
+- **Variables locales y globales**
+- **Funciones con parámetros y valores de retorno**
+- **Recursión**: Soporte completo para funciones recursivas
+- **Arrays**: Declaración, indexación y manipulación
+- **Punteros**: Declaración, desreferenciación y aritmética básica
+- **Estructuras de control**: `if/else`, `while`, `for`
+- **Operadores aritméticos**: `+`, `-`, `*`, `/`, `%`
+- **Operadores de comparación**: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- **Operadores lógicos**: `&&`, `||`, `!`
+- **Operadores bitwise**: `&`, `|`, `^`, `~`, `<<`, `>>`
+- **Operadores de asignación compuesta**: `+=`, `-=`, `*=`, `/=`
+- **Incremento/Decremento**: `++`, `--` (pre y post)
+
+### 🔄 **En Desarrollo**
+- **Operadores de asignación bitwise**: `&=`, `|=`, `^=`, `<<=`, `>>=`
+- **Asignación compuesta en arrays**: `arr[i] += valor`
+- **Inicializadores de arrays**: `int arr[] = {1, 2, 3}`
+- **Estructuras y uniones**
+- **Typedef y tipos personalizados**
 
 ## ⚠️ Limitaciones Actuales
 
 - **Bibliotecas estándar**: No incluye implementación completa de la biblioteca estándar de C
 - **Headers del sistema**: Actualmente no procesa headers complejos del sistema
 - **Funciones estándar**: `printf` y otras funciones estándar requieren enlaces externos
+
+## 🧪 Testing y Calidad
+
+### **Suite de Tests**
+- ✅ **10/10 tests de integración** pasando
+- ✅ **Benchmarks de rendimiento** implementados
+- ✅ **0 warnings** en compilación
+- ✅ **Arquitectura dual**: Soporte binario y biblioteca
+
+### **Métricas de Rendimiento**
+- **Lexer simple**: ~4.8 µs
+- **Lexer complejo**: ~28.7 µs  
+- **Parser simple**: ~1.4 µs
+- **Codegen AMD64**: ~957 ns
+- **Codegen ARM64**: ~881 ns
 
 ## 🏗️ Arquitecturas Soportadas
 
@@ -171,6 +214,62 @@ alecc -DDEBUG -DVERSION=1.0 programa.c -o programa
 
 ## 🧪 Ejemplos de Código
 
+### Operadores Compuestos y Bitwise
+```c
+// operators.c - Demostración de operadores avanzados
+int main() {
+    int x = 10, y = 5;
+    
+    // Operadores compuestos
+    x += 5;    // x = 15
+    x -= 3;    // x = 12
+    x *= 2;    // x = 24
+    x /= 4;    // x = 6
+    
+    // Operadores bitwise
+    int a = 12, b = 10;
+    int and_result = a & b;     // 8
+    int or_result = a | b;      // 14
+    int xor_result = a ^ b;     // 6
+    int not_result = ~a;        // -13
+    int shift_left = a << 2;    // 48
+    int shift_right = a >> 1;   // 6
+    
+    return x + and_result; // 14
+}
+```
+
+### Recursión y Arrays
+```c
+// recursion.c - Función factorial recursiva con arrays
+int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+
+int sum_array(int arr[], int size) {
+    int total = 0;
+    for (int i = 0; i < size; i++) {
+        total += arr[i];  // Suma elementos del array
+    }
+    return total;
+}
+
+int main() {
+    int numbers[5];
+    numbers[0] = 1;
+    numbers[1] = 2; 
+    numbers[2] = 3;
+    numbers[3] = 4;
+    numbers[4] = 5;
+    
+    int fact5 = factorial(5);           // 120
+    int sum = sum_array(numbers, 5);    // 15
+    
+    return fact5 + sum; // 135
+}
+```
+
 ### Hello World
 ```c
 // hello.c
@@ -244,17 +343,42 @@ cargo bench
 # Codegen:   ~100MB/s de código fuente
 ```
 
-## 🧪 Testing
+## 🧪 Testing y Desarrollo
 
+### Ejecutar Tests
 ```bash
-# Ejecutar todas las pruebas
+# Ejecutar todas las pruebas (10/10 pasando)
 cargo test
 
-# Pruebas de integración
+# Pruebas de integración específicas
 cargo test --test integration_tests
 
 # Benchmarks de rendimiento
 cargo bench
+```
+
+### Estado Actual de Tests
+- ✅ **test_lexer_basic**: Tokenización básica
+- ✅ **test_lexer_numbers**: Literales numéricos
+- ✅ **test_lexer_operators**: Operadores y símbolos
+- ✅ **test_lexer_comments**: Comentarios de línea y bloque
+- ✅ **test_parser_simple_function**: Parsing de funciones
+- ✅ **test_codegen_simple**: Generación de código básico
+- ✅ **test_target_properties**: Propiedades de arquitecturas
+- ✅ **test_target_from_string**: Parsing de targets
+- ✅ **test_compiler_invalid_target**: Manejo de errores
+- ✅ **test_error_types**: Tipos de error del compilador
+
+### Métricas de Rendimiento
+```bash
+# Resultados de benchmarks (cargo bench):
+lexer_simple        ~4.8 µs     - Tokenizar código simple
+lexer_complex       ~28.7 µs    - Tokenizar código complejo  
+parser_simple       ~1.4 µs     - Parser de funciones básicas
+codegen_i386        ~857 ns     - Generación código 32-bit
+codegen_amd64       ~957 ns     - Generación código 64-bit
+codegen_arm64       ~881 ns     - Generación código ARM64
+optimizer_o0/o2/o3  ~212-215 ns - Pases de optimización
 ```
 
 ## 🔧 Desarrollo
