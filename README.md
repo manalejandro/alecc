@@ -7,6 +7,8 @@
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)
 ![Tests](https://img.shields.io/badge/tests-10%2F10%20passing-brightgreen.svg)
+[![CI](https://github.com/manalejandro/alecc/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/manalejandro/alecc/actions/workflows/ci.yml)
+![CI Gitea](https://git.manalejandro.com/ale/alecc/actions/workflows/ci.yml/badge.svg?branch=master)
 
 *Un compilador de C/C++ de alto rendimiento con compatibilidad GCC*
 
