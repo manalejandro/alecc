@@ -1,5 +1,5 @@
-use crate::parser::Program;
 use crate::error::Result;
+use crate::parser::Program;
 
 pub struct Optimizer {
     level: OptimizationLevel,
@@ -40,9 +40,7 @@ impl Optimizer {
                 // No optimization
                 Ok(())
             }
-            OptimizationLevel::Basic => {
-                self.basic_optimizations(program)
-            }
+            OptimizationLevel::Basic => self.basic_optimizations(program),
             OptimizationLevel::Moderate => {
                 self.basic_optimizations(program)?;
                 self.moderate_optimizations(program)
@@ -67,59 +65,59 @@ impl Optimizer {
     fn basic_optimizations(&mut self, program: &mut Program) -> Result<()> {
         // Dead code elimination
         self.eliminate_dead_code(program)?;
-        
+
         // Constant folding
         self.fold_constants(program)?;
-        
+
         // Basic strength reduction
         self.basic_strength_reduction(program)?;
-        
+
         Ok(())
     }
 
     fn moderate_optimizations(&mut self, program: &mut Program) -> Result<()> {
         // Loop optimizations
         self.optimize_loops(program)?;
-        
+
         // Function inlining (basic)
         self.inline_small_functions(program)?;
-        
+
         // Common subexpression elimination
         self.eliminate_common_subexpressions(program)?;
-        
+
         Ok(())
     }
 
     fn aggressive_optimizations(&mut self, program: &mut Program) -> Result<()> {
         // Advanced loop optimizations
         self.advanced_loop_optimizations(program)?;
-        
+
         // Aggressive function inlining
         self.aggressive_inlining(program)?;
-        
+
         // Inter-procedural optimizations
         self.interprocedural_optimizations(program)?;
-        
+
         // Vectorization
         self.auto_vectorization(program)?;
-        
+
         Ok(())
     }
 
     fn size_optimizations(&mut self, program: &mut Program) -> Result<()> {
         // Prefer smaller code sequences
         self.optimize_for_size(program)?;
-        
+
         // Merge identical functions
         self.merge_identical_functions(program)?;
-        
+
         Ok(())
     }
 
     fn aggressive_size_optimizations(&mut self, program: &mut Program) -> Result<()> {
         // More aggressive size optimizations that might impact performance
         self.ultra_size_optimizations(program)?;
-        
+
         Ok(())
     }
 

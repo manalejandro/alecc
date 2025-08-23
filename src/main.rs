@@ -1,19 +1,19 @@
-use clap::Parser;
 use anyhow::Result;
-use tracing::{info, error};
+use clap::Parser;
+use tracing::{error, info};
 
-mod compiler;
-mod lexer;
-mod parser;
-mod codegen;
-mod optimizer;
-mod linker;
-mod targets;
 mod cli;
+mod codegen;
+mod compiler;
 mod error;
+mod lexer;
+mod linker;
+mod optimizer;
+mod parser;
+mod targets;
 
-use compiler::Compiler;
 use cli::Args;
+use compiler::Compiler;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -21,11 +21,11 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let args = Args::parse();
-    
+
     info!("Starting ALECC compiler v{}", env!("CARGO_PKG_VERSION"));
-    
+
     let mut compiler = Compiler::new(args.clone())?;
-    
+
     match compiler.compile().await {
         Ok(()) => {
             info!("Compilation completed successfully");

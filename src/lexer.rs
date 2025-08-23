@@ -12,36 +12,116 @@ pub enum TokenType {
     Identifier(String),
 
     // Keywords
-    Auto, Break, Case, Char, Const, Continue, Default, Do,
-    Double, Else, Enum, Extern, Float, For, Goto, If,
-    Int, Long, Register, Return, Short, Signed, Sizeof, Static,
-    Struct, Switch, Typedef, Union, Unsigned, Void, Volatile, While,
+    Auto,
+    Break,
+    Case,
+    Char,
+    Const,
+    Continue,
+    Default,
+    Do,
+    Double,
+    Else,
+    Enum,
+    Extern,
+    Float,
+    For,
+    Goto,
+    If,
+    Int,
+    Long,
+    Register,
+    Return,
+    Short,
+    Signed,
+    Sizeof,
+    Static,
+    Struct,
+    Switch,
+    Typedef,
+    Union,
+    Unsigned,
+    Void,
+    Volatile,
+    While,
 
     // C++ Keywords
-    Bool, Class, Explicit, Export, False, Friend, Inline, Mutable,
-    Namespace, New, Operator, Private, Protected, Public, Template,
-    This, Throw, True, Try, Typename, Using, Virtual,
+    Bool,
+    Class,
+    Explicit,
+    Export,
+    False,
+    Friend,
+    Inline,
+    Mutable,
+    Namespace,
+    New,
+    Operator,
+    Private,
+    Protected,
+    Public,
+    Template,
+    This,
+    Throw,
+    True,
+    Try,
+    Typename,
+    Using,
+    Virtual,
 
     // Operators
-    Plus, Minus, Multiply, Divide, Modulo,
-    Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign, ModuloAssign,
-    Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual,
-    LogicalAnd, LogicalOr, LogicalNot,
-    BitwiseAnd, BitwiseOr, BitwiseXor, BitwiseNot,
-    LeftShift, RightShift, LeftShiftAssign, RightShiftAssign,
-    BitwiseAndAssign, BitwiseOrAssign, BitwiseXorAssign,
-    Increment, Decrement,
-    Arrow, Dot, Question, Colon,
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+    Assign,
+    PlusAssign,
+    MinusAssign,
+    MultiplyAssign,
+    DivideAssign,
+    ModuloAssign,
+    Equal,
+    NotEqual,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+    LogicalAnd,
+    LogicalOr,
+    LogicalNot,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseNot,
+    LeftShift,
+    RightShift,
+    LeftShiftAssign,
+    RightShiftAssign,
+    BitwiseAndAssign,
+    BitwiseOrAssign,
+    BitwiseXorAssign,
+    Increment,
+    Decrement,
+    Arrow,
+    Dot,
+    Question,
+    Colon,
 
     // Delimiters
-    LeftParen, RightParen,
-    LeftBrace, RightBrace,
-    LeftBracket, RightBracket,
-    Semicolon, Comma,
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Semicolon,
+    Comma,
     Ellipsis, // ...
 
     // Preprocessor
-    Hash, HashHash,
+    Hash,
+    HashHash,
 
     // Special
     Eof,
@@ -100,10 +180,10 @@ impl Lexer {
 
     pub fn tokenize(&mut self) -> crate::error::Result<Vec<Token>> {
         let mut tokens = Vec::new();
-        
+
         while !self.is_at_end() {
             self.skip_whitespace();
-            
+
             if self.is_at_end() {
                 break;
             }
@@ -128,7 +208,7 @@ impl Lexer {
 
     fn scan_token(&mut self) -> crate::error::Result<Option<TokenType>> {
         let c = self.advance();
-        
+
         match c {
             '+' => {
                 if self.match_char('=') {
@@ -365,7 +445,7 @@ impl Lexer {
             }
             self.advance();
         }
-        
+
         Err(crate::error::AleccError::LexError {
             line: self.line,
             column: self.column,
@@ -375,13 +455,13 @@ impl Lexer {
 
     fn scan_string(&mut self) -> crate::error::Result<Option<TokenType>> {
         let mut value = String::new();
-        
+
         while !self.is_at_end() && self.current_char() != '"' {
             if self.current_char() == '\n' {
                 self.line += 1;
                 self.column = 1;
             }
-            
+
             if self.current_char() == '\\' {
                 self.advance();
                 if !self.is_at_end() {
@@ -402,7 +482,7 @@ impl Lexer {
                 self.advance();
             }
         }
-        
+
         if self.is_at_end() {
             return Err(crate::error::AleccError::LexError {
                 line: self.line,
@@ -410,7 +490,7 @@ impl Lexer {
                 message: "Unterminated string literal".to_string(),
             });
         }
-        
+
         self.advance(); // consume closing '"'
         Ok(Some(TokenType::StringLiteral(value)))
     }
@@ -423,7 +503,7 @@ impl Lexer {
                 message: "Unterminated character literal".to_string(),
             });
         }
-        
+
         let c = if self.current_char() == '\\' {
             self.advance();
             if self.is_at_end() {
@@ -445,9 +525,9 @@ impl Lexer {
         } else {
             self.current_char()
         };
-        
+
         self.advance();
-        
+
         if self.is_at_end() || self.current_char() != '\'' {
             return Err(crate::error::AleccError::LexError {
                 line: self.line,
@@ -455,30 +535,30 @@ impl Lexer {
                 message: "Unterminated character literal".to_string(),
             });
         }
-        
+
         self.advance(); // consume closing '\''
         Ok(Some(TokenType::CharLiteral(c)))
     }
 
     fn scan_number(&mut self) -> crate::error::Result<Option<TokenType>> {
         let start = self.position - 1;
-        
+
         while !self.is_at_end() && self.current_char().is_ascii_digit() {
             self.advance();
         }
-        
+
         let mut is_float = false;
         if !self.is_at_end() && self.current_char() == '.' && self.peek().is_ascii_digit() {
             is_float = true;
             self.advance(); // consume '.'
-            
+
             while !self.is_at_end() && self.current_char().is_ascii_digit() {
                 self.advance();
             }
         }
-        
+
         let text = &self.input[start..self.position];
-        
+
         if is_float {
             match text.parse::<f64>() {
                 Ok(value) => Ok(Some(TokenType::FloatLiteral(value))),
@@ -502,7 +582,7 @@ impl Lexer {
 
     fn scan_identifier(&mut self) -> crate::error::Result<Option<TokenType>> {
         let start = self.position - 1;
-        
+
         while !self.is_at_end() {
             let c = self.current_char();
             if c.is_ascii_alphanumeric() || c == '_' {
@@ -511,7 +591,7 @@ impl Lexer {
                 break;
             }
         }
-        
+
         let text = &self.input[start..self.position];
         let token_type = match text {
             "auto" => TokenType::Auto,
@@ -571,7 +651,7 @@ impl Lexer {
             "virtual" => TokenType::Virtual,
             _ => TokenType::Identifier(text.to_string()),
         };
-        
+
         Ok(Some(token_type))
     }
 }

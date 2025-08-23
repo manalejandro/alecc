@@ -1,9 +1,9 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use alecc::lexer::Lexer;
-use alecc::parser::Parser;
 use alecc::codegen::CodeGenerator;
-use alecc::optimizer::{Optimizer, OptimizationLevel};
+use alecc::lexer::Lexer;
+use alecc::optimizer::{OptimizationLevel, Optimizer};
+use alecc::parser::Parser;
 use alecc::targets::Target;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 const SIMPLE_C_CODE: &str = r#"
 int main() {
@@ -119,5 +119,11 @@ fn bench_optimizer(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_lexer, bench_parser, bench_codegen, bench_optimizer);
+criterion_group!(
+    benches,
+    bench_lexer,
+    bench_parser,
+    bench_codegen,
+    bench_optimizer
+);
 criterion_main!(benches);

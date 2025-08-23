@@ -19,13 +19,13 @@ impl Target {
     pub fn native() -> Self {
         #[cfg(target_arch = "x86")]
         return Target::I386;
-        
+
         #[cfg(target_arch = "x86_64")]
         return Target::Amd64;
-        
+
         #[cfg(target_arch = "aarch64")]
         return Target::Arm64;
-        
+
         #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
         return Target::Amd64; // Default fallback
     }
@@ -77,7 +77,7 @@ impl Target {
     pub fn linker(&self) -> &'static str {
         match self {
             Target::I386 => "ld -m elf_i386",
-            Target::Amd64 => "ld -m elf_x86_64", 
+            Target::Amd64 => "ld -m elf_x86_64",
             Target::Arm64 => "aarch64-linux-gnu-ld",
         }
     }
@@ -113,9 +113,9 @@ impl Target {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum CallingConvention {
-    Cdecl,      // x86-32
-    SystemV,    // x86-64
-    Aapcs64,    // ARM64
+    Cdecl,   // x86-32
+    SystemV, // x86-64
+    Aapcs64, // ARM64
 }
 
 #[allow(dead_code)]
@@ -131,8 +131,15 @@ impl RegisterSet {
     pub fn general_purpose_registers(&self) -> &'static [&'static str] {
         match self {
             RegisterSet::X86_32 => &["eax", "ebx", "ecx", "edx", "esi", "edi"],
-            RegisterSet::X86_64 => &["rax", "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"],
-            RegisterSet::Aarch64 => &["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"],
+            RegisterSet::X86_64 => &[
+                "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13",
+                "r14", "r15",
+            ],
+            RegisterSet::Aarch64 => &[
+                "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
+                "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24",
+                "x25", "x26", "x27", "x28",
+            ],
         }
     }
 

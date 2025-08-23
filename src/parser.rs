@@ -1,5 +1,5 @@
-use crate::lexer::{Token, TokenType};
 use crate::error::{AleccError, Result};
+use crate::lexer::{Token, TokenType};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -97,30 +97,59 @@ pub enum Expression {
 
 #[derive(Debug, Clone)]
 pub enum BinaryOperator {
-    Add, Subtract, Multiply, Divide, Modulo,
-    Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual,
-    LogicalAnd, LogicalOr,
-    BitwiseAnd, BitwiseOr, BitwiseXor,
-    LeftShift, RightShift,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+    LogicalAnd,
+    LogicalOr,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    LeftShift,
+    RightShift,
 }
 
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
-    Plus, Minus, LogicalNot, BitwiseNot,
-    PreIncrement, PostIncrement,
-    PreDecrement, PostDecrement,
-    AddressOf, Dereference,
+    Plus,
+    Minus,
+    LogicalNot,
+    BitwiseNot,
+    PreIncrement,
+    PostIncrement,
+    PreDecrement,
+    PostDecrement,
+    AddressOf,
+    Dereference,
 }
 
 #[derive(Debug, Clone)]
 pub enum AssignmentOperator {
-    Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign,
-    #[allow(dead_code)] ModuloAssign,
-    #[allow(dead_code)] BitwiseAndAssign,
-    #[allow(dead_code)] BitwiseOrAssign,
-    #[allow(dead_code)] BitwiseXorAssign,
-    #[allow(dead_code)] LeftShiftAssign,
-    #[allow(dead_code)] RightShiftAssign,
+    Assign,
+    PlusAssign,
+    MinusAssign,
+    MultiplyAssign,
+    DivideAssign,
+    #[allow(dead_code)]
+    ModuloAssign,
+    #[allow(dead_code)]
+    BitwiseAndAssign,
+    #[allow(dead_code)]
+    BitwiseOrAssign,
+    #[allow(dead_code)]
+    BitwiseXorAssign,
+    #[allow(dead_code)]
+    LeftShiftAssign,
+    #[allow(dead_code)]
+    RightShiftAssign,
 }
 
 #[derive(Debug, Clone)]
@@ -235,9 +264,11 @@ impl Parser {
         } else {
             let storage_class = self.parse_storage_class();
             let base_type = self.parse_type()?;
-            
-            if self.check(&TokenType::LeftParen) || 
-               (self.check(&TokenType::Identifier("".to_string())) && self.peek_ahead(1)?.token_type == TokenType::LeftParen) {
+
+            if self.check(&TokenType::LeftParen)
+                || (self.check(&TokenType::Identifier("".to_string()))
+                    && self.peek_ahead(1)?.token_type == TokenType::LeftParen)
+            {
                 self.parse_function_declaration(storage_class, base_type)
             } else {
                 self.parse_variable_declaration(storage_class, base_type)
@@ -300,7 +331,7 @@ impl Parser {
         };
 
         let mut fields = Vec::new();
-        
+
         if self.match_token(&TokenType::LeftBrace) {
             while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
                 let field_type = self.parse_type()?;
@@ -313,11 +344,14 @@ impl Parser {
                         message: "Expected field name".to_string(),
                     });
                 };
-                
-                self.consume(&TokenType::Semicolon, "Expected ';' after field declaration")?;
+
+                self.consume(
+                    &TokenType::Semicolon,
+                    "Expected ';' after field declaration",
+                )?;
                 fields.push((field_name, field_type));
             }
-            
+
             self.consume(&TokenType::RightBrace, "Expected '}' after struct body")?;
         }
 
@@ -337,7 +371,7 @@ impl Parser {
         };
 
         let mut fields = Vec::new();
-        
+
         if self.match_token(&TokenType::LeftBrace) {
             while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
                 let field_type = self.parse_type()?;
@@ -350,11 +384,14 @@ impl Parser {
                         message: "Expected field name".to_string(),
                     });
                 };
-                
-                self.consume(&TokenType::Semicolon, "Expected ';' after field declaration")?;
+
+                self.consume(
+                    &TokenType::Semicolon,
+                    "Expected ';' after field declaration",
+                )?;
                 fields.push((field_name, field_type));
             }
-            
+
             self.consume(&TokenType::RightBrace, "Expected '}' after union body")?;
         }
 
@@ -374,10 +411,11 @@ impl Parser {
 
         let mut variants = Vec::new();
         let mut current_value = 0i64;
-        
+
         if self.match_token(&TokenType::LeftBrace) {
             while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
-                let variant_name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
+                let variant_name = if let TokenType::Identifier(name) = &self.advance()?.token_type
+                {
                     name.clone()
                 } else {
                     return Err(AleccError::ParseError {
@@ -386,7 +424,7 @@ impl Parser {
                         message: "Expected enum variant name".to_string(),
                     });
                 };
-                
+
                 if self.match_token(&TokenType::Assign) {
                     if let TokenType::IntegerLiteral(value) = &self.advance()?.token_type {
                         current_value = *value;
@@ -398,15 +436,15 @@ impl Parser {
                         });
                     }
                 }
-                
+
                 variants.push((variant_name, current_value));
                 current_value += 1;
-                
+
                 if !self.check(&TokenType::RightBrace) {
                     self.consume(&TokenType::Comma, "Expected ',' between enum variants")?;
                 }
             }
-            
+
             self.consume(&TokenType::RightBrace, "Expected '}' after enum body")?;
         }
 
@@ -415,11 +453,13 @@ impl Parser {
 
     // Helper methods
     fn current_token(&self) -> Result<&Token> {
-        self.tokens.get(self.current).ok_or_else(|| AleccError::ParseError {
-            line: 0,
-            column: 0,
-            message: "Unexpected end of input".to_string(),
-        })
+        self.tokens
+            .get(self.current)
+            .ok_or_else(|| AleccError::ParseError {
+                line: 0,
+                column: 0,
+                message: "Unexpected end of input".to_string(),
+            })
     }
 
     fn advance(&mut self) -> Result<&Token> {
@@ -445,32 +485,39 @@ impl Parser {
     }
 
     fn previous(&self) -> Result<&Token> {
-        self.tokens.get(self.current - 1).ok_or_else(|| AleccError::ParseError {
-            line: 0,
-            column: 0,
-            message: "No previous token".to_string(),
-        })
+        self.tokens
+            .get(self.current - 1)
+            .ok_or_else(|| AleccError::ParseError {
+                line: 0,
+                column: 0,
+                message: "No previous token".to_string(),
+            })
     }
 
     fn peek_ahead(&self, offset: usize) -> Result<&Token> {
-        self.tokens.get(self.current + offset).ok_or_else(|| AleccError::ParseError {
-            line: 0,
-            column: 0,
-            message: "Unexpected end of input".to_string(),
-        })
+        self.tokens
+            .get(self.current + offset)
+            .ok_or_else(|| AleccError::ParseError {
+                line: 0,
+                column: 0,
+                message: "Unexpected end of input".to_string(),
+            })
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.tokens.len() || 
-        matches!(self.tokens.get(self.current).map(|t| &t.token_type), Some(TokenType::Eof))
+        self.current >= self.tokens.len()
+            || matches!(
+                self.tokens.get(self.current).map(|t| &t.token_type),
+                Some(TokenType::Eof)
+            )
     }
 
     fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
             false
         } else {
-            std::mem::discriminant(&self.current_token().unwrap().token_type) == 
-            std::mem::discriminant(token_type)
+            std::mem::discriminant(&self.current_token().unwrap().token_type)
+                == std::mem::discriminant(token_type)
         }
     }
 
@@ -521,12 +568,16 @@ impl Parser {
                 message: "Expected typedef name".to_string(),
             });
         };
-        
+
         self.consume(&TokenType::Semicolon, "Expected ';' after typedef")?;
         Ok(Declaration::TypeDef(name, base_type))
     }
 
-    fn parse_function_declaration(&mut self, _storage: StorageClass, return_type: Type) -> Result<Declaration> {
+    fn parse_function_declaration(
+        &mut self,
+        _storage: StorageClass,
+        return_type: Type,
+    ) -> Result<Declaration> {
         let name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
             name.clone()
         } else {
@@ -538,16 +589,16 @@ impl Parser {
         };
 
         self.consume(&TokenType::LeftParen, "Expected '(' after function name")?;
-        
+
         let mut parameters = Vec::new();
         let mut is_variadic = false;
-        
+
         while !self.check(&TokenType::RightParen) && !self.is_at_end() {
             if self.match_token(&TokenType::Ellipsis) {
                 is_variadic = true;
                 break;
             }
-            
+
             let param_type = self.parse_type()?;
             let param_name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
                 name.clone()
@@ -558,21 +609,24 @@ impl Parser {
                     message: "Expected parameter name".to_string(),
                 });
             };
-            
+
             parameters.push((param_name, param_type));
-            
+
             if !self.check(&TokenType::RightParen) {
                 self.consume(&TokenType::Comma, "Expected ',' between parameters")?;
             }
         }
-        
+
         self.consume(&TokenType::RightParen, "Expected ')' after parameters")?;
-        
+
         let body = if self.check(&TokenType::LeftBrace) {
             self.advance()?; // Consume the LeftBrace
             self.parse_block_statement()?
         } else {
-            self.consume(&TokenType::Semicolon, "Expected ';' after function declaration")?;
+            self.consume(
+                &TokenType::Semicolon,
+                "Expected ';' after function declaration",
+            )?;
             Statement::Block(Vec::new()) // Forward declaration
         };
 
@@ -588,7 +642,11 @@ impl Parser {
         }))
     }
 
-    fn parse_variable_declaration(&mut self, _storage: StorageClass, var_type: Type) -> Result<Declaration> {
+    fn parse_variable_declaration(
+        &mut self,
+        _storage: StorageClass,
+        var_type: Type,
+    ) -> Result<Declaration> {
         let name = if let TokenType::Identifier(name) = &self.advance()?.token_type {
             name.clone()
         } else {
@@ -605,8 +663,11 @@ impl Parser {
             None
         };
 
-        self.consume(&TokenType::Semicolon, "Expected ';' after variable declaration")?;
-        
+        self.consume(
+            &TokenType::Semicolon,
+            "Expected ';' after variable declaration",
+        )?;
+
         Ok(Declaration::Variable(name, var_type, initializer))
     }
 
@@ -616,7 +677,7 @@ impl Parser {
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
             statements.push(self.parse_statement()?);
         }
-        
+
         self.consume(&TokenType::RightBrace, "Expected '}'")?;
         Ok(Statement::Block(statements))
     }
@@ -676,8 +737,11 @@ impl Parser {
                 None
             };
 
-            self.consume(&TokenType::Semicolon, "Expected ';' after variable declaration")?;
-            
+            self.consume(
+                &TokenType::Semicolon,
+                "Expected ';' after variable declaration",
+            )?;
+
             Ok(Statement::Declaration {
                 name,
                 var_type,
@@ -695,14 +759,14 @@ impl Parser {
         self.consume(&TokenType::LeftParen, "Expected '(' after 'if'")?;
         let condition = self.parse_expression()?;
         self.consume(&TokenType::RightParen, "Expected ')' after if condition")?;
-        
+
         let then_stmt = Box::new(self.parse_statement()?);
         let else_stmt = if self.match_token(&TokenType::Else) {
             Some(Box::new(self.parse_statement()?))
         } else {
             None
         };
-        
+
         Ok(Statement::If {
             condition,
             then_stmt,
@@ -715,39 +779,39 @@ impl Parser {
         let condition = self.parse_expression()?;
         self.consume(&TokenType::RightParen, "Expected ')' after while condition")?;
         let body = Box::new(self.parse_statement()?);
-        
+
         Ok(Statement::While { condition, body })
     }
 
     fn parse_for_statement(&mut self) -> Result<Statement> {
         self.consume(&TokenType::LeftParen, "Expected '(' after 'for'")?;
-        
+
         let init = if self.check(&TokenType::Semicolon) {
             None
         } else {
             Some(Box::new(self.parse_statement()?))
         };
-        
+
         if init.is_none() {
             self.advance()?; // consume semicolon
         }
-        
+
         let condition = if self.check(&TokenType::Semicolon) {
             None
         } else {
             Some(self.parse_expression()?)
         };
         self.consume(&TokenType::Semicolon, "Expected ';' after for condition")?;
-        
+
         let increment = if self.check(&TokenType::RightParen) {
             None
         } else {
             Some(self.parse_expression()?)
         };
         self.consume(&TokenType::RightParen, "Expected ')' after for clauses")?;
-        
+
         let body = Box::new(self.parse_statement()?);
-        
+
         Ok(Statement::For {
             init,
             condition,
@@ -757,10 +821,18 @@ impl Parser {
     }
 
     fn is_type(&self, token_type: &TokenType) -> bool {
-        matches!(token_type, 
-            TokenType::Int | TokenType::Float | TokenType::Double | 
-            TokenType::Char | TokenType::Void | TokenType::Short | 
-            TokenType::Long | TokenType::Signed | TokenType::Unsigned)
+        matches!(
+            token_type,
+            TokenType::Int
+                | TokenType::Float
+                | TokenType::Double
+                | TokenType::Char
+                | TokenType::Void
+                | TokenType::Short
+                | TokenType::Long
+                | TokenType::Signed
+                | TokenType::Unsigned
+        )
     }
 
     fn parse_expression(&mut self) -> Result<Expression> {
@@ -769,7 +841,7 @@ impl Parser {
 
     fn parse_assignment(&mut self) -> Result<Expression> {
         let expr = self.parse_logical_or()?;
-        
+
         if self.match_token(&TokenType::Assign) {
             let value = self.parse_assignment()?; // Right associative
             return Ok(Expression::Assignment {
@@ -806,13 +878,13 @@ impl Parser {
                 value: Box::new(value),
             });
         }
-        
+
         Ok(expr)
     }
 
     fn parse_logical_or(&mut self) -> Result<Expression> {
         let mut expr = self.parse_logical_and()?;
-        
+
         while self.match_token(&TokenType::LogicalOr) {
             let operator = BinaryOperator::LogicalOr;
             let right = self.parse_logical_and()?;
@@ -822,13 +894,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_logical_and(&mut self) -> Result<Expression> {
         let mut expr = self.parse_bitwise_or()?;
-        
+
         while self.match_token(&TokenType::LogicalAnd) {
             let operator = BinaryOperator::LogicalAnd;
             let right = self.parse_bitwise_or()?;
@@ -838,13 +910,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_bitwise_or(&mut self) -> Result<Expression> {
         let mut expr = self.parse_bitwise_xor()?;
-        
+
         while self.match_token(&TokenType::BitwiseOr) {
             let operator = BinaryOperator::BitwiseOr;
             let right = self.parse_bitwise_xor()?;
@@ -854,13 +926,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_bitwise_xor(&mut self) -> Result<Expression> {
         let mut expr = self.parse_bitwise_and()?;
-        
+
         while self.match_token(&TokenType::BitwiseXor) {
             let operator = BinaryOperator::BitwiseXor;
             let right = self.parse_bitwise_and()?;
@@ -870,13 +942,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_bitwise_and(&mut self) -> Result<Expression> {
         let mut expr = self.parse_equality()?;
-        
+
         while self.match_token(&TokenType::BitwiseAnd) {
             let operator = BinaryOperator::BitwiseAnd;
             let right = self.parse_equality()?;
@@ -886,13 +958,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_equality(&mut self) -> Result<Expression> {
         let mut expr = self.parse_comparison()?;
-        
+
         while self.match_tokens(&[TokenType::Equal, TokenType::NotEqual]) {
             let operator = match self.previous()?.token_type {
                 TokenType::Equal => BinaryOperator::Equal,
@@ -906,15 +978,19 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_comparison(&mut self) -> Result<Expression> {
         let mut expr = self.parse_shift()?;
-        
-        while self.match_tokens(&[TokenType::Greater, TokenType::GreaterEqual, 
-                                  TokenType::Less, TokenType::LessEqual]) {
+
+        while self.match_tokens(&[
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+        ]) {
             let operator = match self.previous()?.token_type {
                 TokenType::Greater => BinaryOperator::Greater,
                 TokenType::GreaterEqual => BinaryOperator::GreaterEqual,
@@ -929,13 +1005,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_shift(&mut self) -> Result<Expression> {
         let mut expr = self.parse_term()?;
-        
+
         while self.match_tokens(&[TokenType::LeftShift, TokenType::RightShift]) {
             let operator = match self.previous()?.token_type {
                 TokenType::LeftShift => BinaryOperator::LeftShift,
@@ -949,13 +1025,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_term(&mut self) -> Result<Expression> {
         let mut expr = self.parse_factor()?;
-        
+
         while self.match_tokens(&[TokenType::Minus, TokenType::Plus]) {
             let operator = match self.previous()?.token_type {
                 TokenType::Minus => BinaryOperator::Subtract,
@@ -969,13 +1045,13 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_factor(&mut self) -> Result<Expression> {
         let mut expr = self.parse_unary()?;
-        
+
         while self.match_tokens(&[TokenType::Divide, TokenType::Multiply, TokenType::Modulo]) {
             let operator = match self.previous()?.token_type {
                 TokenType::Divide => BinaryOperator::Divide,
@@ -990,12 +1066,21 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_unary(&mut self) -> Result<Expression> {
-        if self.match_tokens(&[TokenType::LogicalNot, TokenType::Minus, TokenType::Plus, TokenType::Increment, TokenType::Decrement, TokenType::BitwiseAnd, TokenType::Multiply, TokenType::BitwiseNot]) {
+        if self.match_tokens(&[
+            TokenType::LogicalNot,
+            TokenType::Minus,
+            TokenType::Plus,
+            TokenType::Increment,
+            TokenType::Decrement,
+            TokenType::BitwiseAnd,
+            TokenType::Multiply,
+            TokenType::BitwiseNot,
+        ]) {
             let operator = match self.previous()?.token_type {
                 TokenType::LogicalNot => UnaryOperator::LogicalNot,
                 TokenType::Minus => UnaryOperator::Minus,
@@ -1013,13 +1098,13 @@ impl Parser {
                 operand: Box::new(right),
             });
         }
-        
+
         self.parse_call()
     }
 
     fn parse_call(&mut self) -> Result<Expression> {
         let mut expr = self.parse_primary()?;
-        
+
         loop {
             if self.match_token(&TokenType::LeftParen) {
                 expr = self.finish_call(expr)?;
@@ -1045,13 +1130,13 @@ impl Parser {
                 break;
             }
         }
-        
+
         Ok(expr)
     }
 
     fn finish_call(&mut self, callee: Expression) -> Result<Expression> {
         let mut arguments = Vec::new();
-        
+
         if !self.check(&TokenType::RightParen) {
             loop {
                 arguments.push(self.parse_expression()?);
@@ -1060,9 +1145,9 @@ impl Parser {
                 }
             }
         }
-        
+
         self.consume(&TokenType::RightParen, "Expected ')' after arguments")?;
-        
+
         Ok(Expression::Call {
             function: Box::new(callee),
             arguments,
@@ -1075,7 +1160,7 @@ impl Parser {
             self.consume(&TokenType::RightParen, "Expected ')' after expression")?;
             return Ok(expr);
         }
-        
+
         let token = self.advance()?;
         match &token.token_type {
             TokenType::IntegerLiteral(value) => Ok(Expression::IntegerLiteral(*value)),

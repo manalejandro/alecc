@@ -1,9 +1,9 @@
-pub mod lexer;
-pub mod parser;
-pub mod codegen;
-pub mod targets;
-pub mod compiler;
 pub mod cli;
+pub mod codegen;
+pub mod compiler;
 pub mod error;
-pub mod optimizer;
+pub mod lexer;
 pub mod linker;
+pub mod optimizer;
+pub mod parser;
+pub mod targets;

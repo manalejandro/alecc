@@ -1,15 +1,15 @@
 use crate::cli::Args;
-use crate::lexer::Lexer;
-use crate::parser::Parser;
 use crate::codegen::CodeGenerator;
-use crate::optimizer::{Optimizer, OptimizationLevel};
-use crate::linker::Linker;
-use crate::targets::Target;
 use crate::error::{AleccError, Result};
+use crate::lexer::Lexer;
+use crate::linker::Linker;
+use crate::optimizer::{OptimizationLevel, Optimizer};
+use crate::parser::Parser;
+use crate::targets::Target;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::fs;
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 pub struct Compiler {
     args: Args,
@@ -19,11 +19,10 @@ pub struct Compiler {
 
 impl Compiler {
     pub fn new(args: Args) -> Result<Self> {
-        let target = Target::from_string(&args.target).ok_or_else(|| {
-            AleccError::UnsupportedTarget {
+        let target =
+            Target::from_string(&args.target).ok_or_else(|| AleccError::UnsupportedTarget {
                 target: args.target.clone(),
-            }
-        })?;
+            })?;
 
         Ok(Self {
             args,
@@ -39,9 +38,11 @@ impl Compiler {
             });
         }
 
-        info!("Compiling {} files for target {}", 
-              self.args.input_files.len(), 
-              self.target.as_str());
+        info!(
+            "Compiling {} files for target {}",
+            self.args.input_files.len(),
+            self.target.as_str()
+        );
 
         let mut object_files = Vec::new();
         let input_files = self.args.input_files.clone(); // Clone to avoid borrow issues
@@ -49,15 +50,19 @@ impl Compiler {
         // Process each input file
         for input_file in &input_files {
             debug!("Processing file: {}", input_file.display());
-            
-            let extension = input_file.extension()
+
+            let extension = input_file
+                .extension()
                 .and_then(|ext| ext.to_str())
                 .unwrap_or("");
 
             match extension {
                 "c" | "cpp" | "cxx" | "cc" | "C" => {
                     let obj_file = self.compile_source_file(input_file).await?;
-                    if !self.args.compile_only && !self.args.assembly_only && !self.args.preprocess_only {
+                    if !self.args.compile_only
+                        && !self.args.assembly_only
+                        && !self.args.preprocess_only
+                    {
                         object_files.push(obj_file);
                     }
                 }
@@ -71,10 +76,15 @@ impl Compiler {
                     object_files.push(input_file.clone());
                 }
                 _ => {
-                    warn!("Unknown file extension for {}, treating as C source", 
-                          input_file.display());
+                    warn!(
+                        "Unknown file extension for {}, treating as C source",
+                        input_file.display()
+                    );
                     let obj_file = self.compile_source_file(input_file).await?;
-                    if !self.args.compile_only && !self.args.assembly_only && !self.args.preprocess_only {
+                    if !self.args.compile_only
+                        && !self.args.assembly_only
+                        && !self.args.preprocess_only
+                    {
                         object_files.push(obj_file);
                     }
                 }
@@ -96,19 +106,20 @@ impl Compiler {
         info!("Compiling source file: {}", input_file.display());
 
         // Read source file
-        let source = fs::read_to_string(input_file).await.map_err(|_e| {
-            AleccError::FileNotFound {
-                path: input_file.to_string_lossy().to_string(),
-            }
-        })?;
+        let source =
+            fs::read_to_string(input_file)
+                .await
+                .map_err(|_e| AleccError::FileNotFound {
+                    path: input_file.to_string_lossy().to_string(),
+                })?;
 
         // Preprocessing
         let preprocessed = if self.args.preprocess_only {
             let output_path = self.get_output_path(input_file, "i")?;
             let preprocessed = self.preprocess(&source, input_file).await?;
-            fs::write(&output_path, preprocessed).await.map_err(|e| {
-                AleccError::IoError(e)
-            })?;
+            fs::write(&output_path, preprocessed)
+                .await
+                .map_err(|e| AleccError::IoError(e))?;
             return Ok(output_path);
         } else {
             self.preprocess(&source, input_file).await?
@@ -136,17 +147,17 @@ impl Compiler {
 
         if self.args.assembly_only {
             let output_path = self.get_output_path(input_file, "s")?;
-            fs::write(&output_path, assembly).await.map_err(|e| {
-                AleccError::IoError(e)
-            })?;
+            fs::write(&output_path, assembly)
+                .await
+                .map_err(|e| AleccError::IoError(e))?;
             return Ok(output_path);
         }
 
         // Write assembly to temporary file
         let asm_path = self.create_temp_file("s")?;
-        fs::write(&asm_path, assembly).await.map_err(|e| {
-            AleccError::IoError(e)
-        })?;
+        fs::write(&asm_path, assembly)
+            .await
+            .map_err(|e| AleccError::IoError(e))?;
 
         // Assemble
         let obj_path = self.assemble_file(&asm_path).await?;
@@ -156,7 +167,7 @@ impl Compiler {
 
     async fn preprocess(&self, source: &str, input_file: &Path) -> Result<String> {
         debug!("Preprocessing {}", input_file.display());
-        
+
         // Simple preprocessing - just handle basic #include and #define
         let mut preprocessed = String::new();
         let mut defines = std::collections::HashMap::new();
@@ -175,7 +186,7 @@ impl Compiler {
         // Process source line by line
         for line in source.lines() {
             let trimmed = line.trim();
-            
+
             if trimmed.starts_with("#include") {
                 // Handle #include (simplified)
                 match self.extract_include_file(trimmed) {
@@ -238,7 +249,7 @@ impl Compiler {
                 }
             }
         }
-        
+
         if let Some(start) = line.find('<') {
             if let Some(end) = line.rfind('>') {
                 if start != end {
@@ -278,7 +289,7 @@ impl Compiler {
             ],
             Target::Amd64 => vec![
                 "/usr/include",
-                "/usr/local/include", 
+                "/usr/local/include",
                 "/usr/include/x86_64-linux-gnu",
             ],
             Target::Arm64 => vec![
@@ -311,12 +322,12 @@ impl Compiler {
 
         let assembler = match self.target {
             Target::I386 => "as",
-            Target::Amd64 => "as", 
+            Target::Amd64 => "as",
             Target::Arm64 => "aarch64-linux-gnu-as",
         };
 
         let mut command = Command::new(assembler);
-        
+
         match self.target {
             Target::I386 => {
                 command.args(&["--32"]);
@@ -330,8 +341,9 @@ impl Compiler {
         }
 
         command.args(&[
-            "-o", &obj_path.to_string_lossy(),
-            &asm_file.to_string_lossy()
+            "-o",
+            &obj_path.to_string_lossy(),
+            &asm_file.to_string_lossy(),
         ]);
 
         let output = command.output().map_err(|e| AleccError::CodegenError {
@@ -352,7 +364,7 @@ impl Compiler {
         info!("Linking {} object files", object_files.len());
 
         let mut linker = Linker::new(self.target);
-        
+
         // Set output path
         let output_path = self.args.output.clone().unwrap_or_else(|| {
             if self.args.shared {
@@ -401,20 +413,26 @@ impl Compiler {
         if let Some(ref output) = self.args.output {
             Ok(output.clone())
         } else {
-            let stem = input_file.file_stem()
+            let stem = input_file
+                .file_stem()
                 .ok_or_else(|| AleccError::InvalidArgument {
                     message: "Invalid input file name".to_string(),
                 })?;
-            Ok(PathBuf::from(format!("{}.{}", stem.to_string_lossy(), extension)))
+            Ok(PathBuf::from(format!(
+                "{}.{}",
+                stem.to_string_lossy(),
+                extension
+            )))
         }
     }
 
     fn create_temp_file(&mut self, extension: &str) -> Result<PathBuf> {
-        let temp_path = std::env::temp_dir()
-            .join(format!("alecc_{}_{}.{}", 
-                         std::process::id(),
-                         self.temp_files.len(),
-                         extension));
+        let temp_path = std::env::temp_dir().join(format!(
+            "alecc_{}_{}.{}",
+            std::process::id(),
+            self.temp_files.len(),
+            extension
+        ));
         self.temp_files.push(temp_path.clone());
         Ok(temp_path)
     }
@@ -423,8 +441,11 @@ impl Compiler {
         for temp_file in &self.temp_files {
             if temp_file.exists() {
                 if let Err(e) = fs::remove_file(temp_file).await {
-                    warn!("Failed to remove temporary file {}: {}", 
-                          temp_file.display(), e);
+                    warn!(
+                        "Failed to remove temporary file {}: {}",
+                        temp_file.display(),
+                        e
+                    );
                 }
             }
         }

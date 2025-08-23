@@ -1,5 +1,5 @@
-use crate::targets::Target;
 use crate::error::{AleccError, Result};
+use crate::targets::Target;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -88,7 +88,7 @@ impl Linker {
         }
 
         let linker_command = self.build_linker_command()?;
-        
+
         let output = Command::new(&linker_command[0])
             .args(&linker_command[1..])
             .output()
@@ -108,14 +108,14 @@ impl Linker {
 
     fn build_linker_command(&self) -> Result<Vec<String>> {
         let mut command = Vec::new();
-        
+
         // Choose linker based on target
         let linker = match self.target {
             Target::I386 => "ld",
             Target::Amd64 => "ld",
             Target::Arm64 => "aarch64-linux-gnu-ld",
         };
-        
+
         command.push(linker.to_string());
 
         // Target-specific flags
@@ -238,10 +238,7 @@ impl Linker {
                 "/usr/lib64",
                 "/lib64",
             ],
-            Target::Arm64 => vec![
-                "/usr/lib/aarch64-linux-gnu",
-                "/lib/aarch64-linux-gnu",
-            ],
+            Target::Arm64 => vec!["/usr/lib/aarch64-linux-gnu", "/lib/aarch64-linux-gnu"],
         };
 
         for path in lib_paths {
@@ -274,7 +271,7 @@ impl Linker {
 
         let libgcc_path = String::from_utf8_lossy(&output.stdout);
         let libgcc_path = libgcc_path.trim();
-        
+
         if let Some(parent) = Path::new(libgcc_path).parent() {
             Ok(parent.to_string_lossy().to_string())
         } else {
@@ -286,15 +283,15 @@ impl Linker {
 
     pub async fn link_shared_library(&self, soname: Option<&str>) -> Result<()> {
         let mut command = self.build_linker_command()?;
-        
+
         // Remove executable-specific flags
         command.retain(|arg| arg != "-pie" && !arg.starts_with("-dynamic-linker"));
-        
+
         // Add shared library flags
         if !command.contains(&"-shared".to_string()) {
             command.push("-shared".to_string());
         }
-        
+
         if let Some(soname) = soname {
             command.push("-soname".to_string());
             command.push(soname.to_string());
@@ -322,7 +319,7 @@ impl Linker {
         // Use ar to create static library
         let mut command = vec!["ar".to_string(), "rcs".to_string()];
         command.push(self.output_path.to_string_lossy().to_string());
-        
+
         for obj in &self.object_files {
             command.push(obj.to_string_lossy().to_string());
         }

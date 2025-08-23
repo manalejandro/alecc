@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
+    use alecc::cli::Args;
+    use alecc::codegen::CodeGenerator;
+    use alecc::compiler::Compiler;
     use alecc::lexer::{Lexer, TokenType};
     use alecc::parser::Parser;
-    use alecc::codegen::CodeGenerator;
     use alecc::targets::Target;
-    use alecc::compiler::Compiler;
-    use alecc::cli::Args;
     use std::path::PathBuf;
 
     #[test]
@@ -13,7 +13,7 @@ mod tests {
         let input = "int main() { return 0; }".to_string();
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert!(!tokens.is_empty());
         assert!(matches!(tokens[0].token_type, TokenType::Int));
     }
@@ -23,8 +23,11 @@ mod tests {
         let input = "42 3.14 'a' \"hello\"".to_string();
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize().unwrap();
-        
-        assert!(matches!(tokens[0].token_type, TokenType::IntegerLiteral(42)));
+
+        assert!(matches!(
+            tokens[0].token_type,
+            TokenType::IntegerLiteral(42)
+        ));
         assert!(matches!(tokens[1].token_type, TokenType::FloatLiteral(_)));
         assert!(matches!(tokens[2].token_type, TokenType::CharLiteral('a')));
         assert!(matches!(tokens[3].token_type, TokenType::StringLiteral(_)));
@@ -35,7 +38,7 @@ mod tests {
         let input = "+ - * / == != < > <= >=".to_string();
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize().unwrap();
-        
+
         assert!(matches!(tokens[0].token_type, TokenType::Plus));
         assert!(matches!(tokens[1].token_type, TokenType::Minus));
         assert!(matches!(tokens[2].token_type, TokenType::Multiply));
@@ -49,9 +52,10 @@ mod tests {
         let input = "int x; // comment\n/* block comment */ int y;".to_string();
         let mut lexer = Lexer::new(input);
         let tokens = lexer.tokenize().unwrap();
-        
+
         // Comments should be filtered out
-        let identifier_count = tokens.iter()
+        let identifier_count = tokens
+            .iter()
             .filter(|t| matches!(t.token_type, TokenType::Identifier(_)))
             .count();
         assert_eq!(identifier_count, 2); // x and y
@@ -64,7 +68,7 @@ mod tests {
         let tokens = lexer.tokenize().unwrap();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
-        
+
         assert_eq!(program.functions.len(), 1);
         assert_eq!(program.functions[0].name, "main");
     }
@@ -92,10 +96,10 @@ mod tests {
         let tokens = lexer.tokenize().unwrap();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
-        
+
         let mut codegen = CodeGenerator::new(Target::Amd64);
         let assembly = codegen.generate(&program).unwrap();
-        
+
         assert!(assembly.contains("main:"));
         assert!(assembly.contains("ret"));
     }
@@ -136,13 +140,13 @@ mod tests {
     #[test]
     fn test_error_types() {
         use alecc::error::AleccError;
-        
+
         let lex_error = AleccError::LexError {
             line: 1,
             column: 5,
             message: "Unexpected character".to_string(),
         };
-        
+
         assert!(format!("{}", lex_error).contains("line 1"));
         assert!(format!("{}", lex_error).contains("column 5"));
     }
